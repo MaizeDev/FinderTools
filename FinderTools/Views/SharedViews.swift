@@ -33,7 +33,7 @@ struct SettingsCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
             content
         }
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
@@ -71,12 +71,13 @@ struct MenuItemControls: View {
         itemName: String,
         enabledKey: String,
         placementKey: String,
+        defaultEnabled: Bool = true,
         isAvailable: Bool = true
     ) {
         self.itemName = itemName
         self.isAvailable = isAvailable
         _isEnabled = AppStorage(
-            wrappedValue: true,
+            wrappedValue: defaultEnabled,
             enabledKey,
             store: FinderMenuPreferences.store
         )

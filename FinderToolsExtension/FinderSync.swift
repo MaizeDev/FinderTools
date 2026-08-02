@@ -4,11 +4,24 @@ import os
 
 final class FinderSync: FIFinderSync {
     private let logger = Logger(subsystem: "com.wheat.FinderTools", category: "FinderSync")
-    private let applicationOptions = ApplicationMenuOption.defaults
     private let preferences = UserDefaults.standard
+    private var cachedConfiguration = MenuConfiguration.defaults
+    private var allApplicationSnapshot: [ApplicationMenuOption] = []
+    private var applicationSnapshots: [String: [ApplicationMenuOption]] = [:]
+    private var directoryApplicationSnapshot: [ApplicationMenuOption] = []
+    private var cachedMenuIcons: [String: NSImage] = [:]
+    private var applicationTagByID: [String: Int] = [:]
+    private var applicationPathByTag: [Int: String] = [:]
 
     override init() {
         super.init()
+
+        if let data = preferences.data(forKey: PreferenceStorage.configuration),
+           let configuration = try? JSONDecoder().decode(MenuConfiguration.self, from: data) {
+            rebuildMenuSnapshots(using: configuration)
+        } else {
+            rebuildMenuSnapshots(using: .defaults)
+        }
 
         let root = URL(fileURLWithPath: "/", isDirectory: true)
         FIFinderSyncController.default().directoryURLs = [root]
@@ -33,6 +46,13 @@ final class FinderSync: FIFinderSync {
     }
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
+        let startTime = ProcessInfo.processInfo.systemUptime
+        defer {
+            let elapsedMilliseconds = (ProcessInfo.processInfo.systemUptime - startTime) * 1_000
+            logger.debug(
+                "Built Finder menu kind \(menuKind.rawValue, privacy: .public) in \(elapsedMilliseconds, format: .fixed(precision: 2)) ms"
+            )
+        }
         logger.debug("Finder requested menu kind: \(menuKind.rawValue, privacy: .public)")
         switch menuKind {
         case .contextualMenuForContainer:
@@ -49,7 +69,7 @@ final class FinderSync: FIFinderSync {
             return nil
         }
 
-        let configuration = menuConfiguration
+        let configuration = cachedConfiguration
         let enabledTypes = NewFileType.allCases.filter {
             configuration.newFileSetting(for: $0.preferenceID).isEnabled
         }
@@ -88,7 +108,15 @@ final class FinderSync: FIFinderSync {
         let item = NSMenuItem(title: fileType.menuTitle, action: #selector(createFile(_:)), keyEquivalent: "")
         item.target = self
         item.tag = fileType.rawValue
-        item.image = NSImage(systemSymbolName: fileType.systemImage, accessibilityDescription: nil)
+        let symbolConfiguration = NSImage.SymbolConfiguration(
+            hierarchicalColor: fileType.menuColor
+        )
+        let icon = NSImage(
+            systemSymbolName: fileType.systemImage,
+            accessibilityDescription: nil
+        )?.withSymbolConfiguration(symbolConfiguration)
+        icon?.isTemplate = false
+        item.image = icon
         return item
     }
 
@@ -98,17 +126,12 @@ final class FinderSync: FIFinderSync {
             return nil
         }
 
-        let configuration = menuConfiguration
-        // Keep the original indexes after filtering so menu actions still open
-        // the correct entry in applicationOptions.
-        let enabledOptions = applicationOptions.enumerated().filter { _, option in
-            option.isInstalled
-                && configuration.applicationSetting(for: option.preferenceID).isEnabled
-        }
-        let primaryOptions = enabledOptions.filter { _, option in
+        let configuration = cachedConfiguration
+        let applicationOptions = applicationsForSelection(selectedURLs)
+        let primaryOptions = applicationOptions.filter { option in
             configuration.applicationSetting(for: option.preferenceID).placement == .primary
         }
-        let submenuOptions = enabledOptions.filter { _, option in
+        let submenuOptions = applicationOptions.filter { option in
             configuration.applicationSetting(for: option.preferenceID).placement == .submenu
         }
         let chooseOtherSetting = configuration.applicationSetting(for: "other")
@@ -126,8 +149,8 @@ final class FinderSync: FIFinderSync {
 
         let menu = NSMenu(title: "")
 
-        for (index, option) in primaryOptions {
-            menu.addItem(makeApplicationMenuItem(option, index: index, isPrimary: true))
+        for option in primaryOptions {
+            menu.addItem(makeApplicationMenuItem(option, isPrimary: true))
         }
         if hasPrimaryChooseOther {
             menu.addItem(makeChooseOtherMenuItem(isPrimary: true))
@@ -138,8 +161,8 @@ final class FinderSync: FIFinderSync {
             parentItem.image = NSImage(systemSymbolName: "macwindow.on.rectangle", accessibilityDescription: nil)
             let submenu = NSMenu(title: "使用软件打开")
 
-            for (index, option) in submenuOptions {
-                submenu.addItem(makeApplicationMenuItem(option, index: index, isPrimary: false))
+            for option in submenuOptions {
+                submenu.addItem(makeApplicationMenuItem(option, isPrimary: false))
             }
             if hasSubmenuChooseOther {
                 if !submenuOptions.isEmpty {
@@ -157,7 +180,6 @@ final class FinderSync: FIFinderSync {
 
     private func makeApplicationMenuItem(
         _ option: ApplicationMenuOption,
-        index: Int,
         isPrimary: Bool
     ) -> NSMenuItem {
         let title = isPrimary ? "使用\(option.name)打开" : option.name
@@ -167,8 +189,8 @@ final class FinderSync: FIFinderSync {
             keyEquivalent: ""
         )
         item.target = self
-        item.tag = index
-        item.image = option.menuIcon
+        item.tag = applicationTagByID[option.preferenceID] ?? -1
+        item.image = cachedMenuIcons[option.preferenceID] ?? option.fallbackMenuIcon
         item.image?.size = NSSize(width: 18, height: 18)
         return item
     }
@@ -184,23 +206,72 @@ final class FinderSync: FIFinderSync {
         return item
     }
 
-    private var menuConfiguration: MenuConfiguration {
-        guard let data = preferences.data(forKey: PreferenceStorage.configuration),
-              let configuration = try? JSONDecoder().decode(MenuConfiguration.self, from: data) else {
-            return .defaults
+    private func rebuildMenuSnapshots(using configuration: MenuConfiguration) {
+        cachedConfiguration = configuration
+        let enabledApplications = (configuration.applicationOptions ?? ApplicationMenuOption.defaults)
+            .filter {
+                configuration.applicationSetting(for: $0.preferenceID).isEnabled
+            }
+
+        allApplicationSnapshot = enabledApplications
+        applicationSnapshots = [:]
+        directoryApplicationSnapshot = enabledApplications.filter { $0.opensDirectories == true }
+        cachedMenuIcons = [:]
+        applicationTagByID = [:]
+        applicationPathByTag = [:]
+
+        for (tag, application) in enabledApplications.enumerated() {
+            applicationTagByID[application.preferenceID] = tag
+            applicationPathByTag[tag] = application.path
+
+            for fileExtension in application.supportedExtensions ?? [] {
+                applicationSnapshots[fileExtension.lowercased(), default: []].append(application)
+            }
+
+            let icon = application.menuIconData.flatMap(NSImage.init(data:))
+                ?? application.fallbackMenuIcon
+            icon?.size = NSSize(width: 18, height: 18)
+            cachedMenuIcons[application.preferenceID] = icon
         }
-        return configuration
+
+        logger.notice(
+            "Prepared \(enabledApplications.count, privacy: .public) enabled app menu entries and \(self.applicationSnapshots.count, privacy: .public) file-type snapshots"
+        )
+    }
+
+    private func applicationsForSelection(_ selectedURLs: [URL]) -> [ApplicationMenuOption] {
+        if selectedURLs.allSatisfy(\.hasDirectoryPath) {
+            return directoryApplicationSnapshot
+        }
+
+        let selectedExtensions = Set(
+            selectedURLs.map { $0.pathExtension.lowercased() }.filter { !$0.isEmpty }
+        )
+        guard !selectedExtensions.isEmpty else {
+            return allApplicationSnapshot
+        }
+
+        if selectedExtensions.count == 1,
+           let fileExtension = selectedExtensions.first {
+            return applicationSnapshots[fileExtension] ?? []
+        }
+
+        return allApplicationSnapshot.filter { application in
+            let supportedExtensions = Set(application.supportedExtensions ?? [])
+            return selectedExtensions.isSubset(of: supportedExtensions)
+        }
     }
 
     @objc private func receivePreferences(_ notification: Notification) {
         guard let encoded = notification.object as? String,
               let data = Data(base64Encoded: encoded),
-              (try? JSONDecoder().decode(MenuConfiguration.self, from: data)) != nil else {
+              let configuration = try? JSONDecoder().decode(MenuConfiguration.self, from: data) else {
             logger.error("Ignored an invalid menu preferences update")
             return
         }
 
         preferences.set(data, forKey: PreferenceStorage.configuration)
+        rebuildMenuSnapshots(using: configuration)
         logger.notice("Updated Finder menu preferences")
     }
 
@@ -242,8 +313,9 @@ final class FinderSync: FIFinderSync {
     @objc private func openWithApplication(_ sender: NSMenuItem) {
         logger.notice("Open-with menu action received; tag=\(sender.tag, privacy: .public)")
 
-        guard applicationOptions.indices.contains(sender.tag) else {
-            logger.error("Open-with action had an unknown tag")
+        guard let applicationPath = applicationPathByTag[sender.tag],
+              FileManager.default.fileExists(atPath: applicationPath) else {
+            logger.error("Open-with action had an unavailable application path")
             return
         }
         guard let selectedURLs = FIFinderSyncController.default().selectedItemURLs(),
@@ -252,9 +324,7 @@ final class FinderSync: FIFinderSync {
             return
         }
 
-        let option = applicationOptions[sender.tag]
-        guard option.isInstalled else { return }
-        sendOpenCommand(selectedURLs, applicationPath: option.path)
+        sendOpenCommand(selectedURLs, applicationPath: applicationPath)
     }
 
     @objc private func chooseOtherApplication(_ sender: NSMenuItem) {
@@ -311,6 +381,16 @@ private enum NewFileType: Int, CaseIterable {
     case word
     case excel
     case powerPoint
+    case markdown
+    case richText
+    case csv
+    case json
+    case yaml
+    case html
+    case css
+    case javaScript
+    case swift
+    case python
 
     var preferenceID: String {
         switch self {
@@ -318,6 +398,16 @@ private enum NewFileType: Int, CaseIterable {
         case .word: "word"
         case .excel: "excel"
         case .powerPoint: "powerpoint"
+        case .markdown: "markdown"
+        case .richText: "richtext"
+        case .csv: "csv"
+        case .json: "json"
+        case .yaml: "yaml"
+        case .html: "html"
+        case .css: "css"
+        case .javaScript: "javascript"
+        case .swift: "swift"
+        case .python: "python"
         }
     }
 
@@ -327,6 +417,16 @@ private enum NewFileType: Int, CaseIterable {
         case .word: "未命名.docx"
         case .excel: "未命名.xlsx"
         case .powerPoint: "未命名.pptx"
+        case .markdown: "未命名.md"
+        case .richText: "未命名.rtf"
+        case .csv: "未命名.csv"
+        case .json: "未命名.json"
+        case .yaml: "未命名.yaml"
+        case .html: "未命名.html"
+        case .css: "未命名.css"
+        case .javaScript: "未命名.js"
+        case .swift: "未命名.swift"
+        case .python: "未命名.py"
         }
     }
 
@@ -336,6 +436,16 @@ private enum NewFileType: Int, CaseIterable {
         case .word: "docx"
         case .excel: "xlsx"
         case .powerPoint: "pptx"
+        case .markdown: "md"
+        case .richText: "rtf"
+        case .csv: "csv"
+        case .json: "json"
+        case .yaml: "yaml"
+        case .html: "html"
+        case .css: "css"
+        case .javaScript: "js"
+        case .swift: "swift"
+        case .python: "py"
         }
     }
 
@@ -345,26 +455,70 @@ private enum NewFileType: Int, CaseIterable {
         case .word: "doc.text"
         case .excel: "tablecells"
         case .powerPoint: "rectangle.on.rectangle.angled"
+        case .markdown: "text.document"
+        case .richText: "doc.richtext"
+        case .csv: "tablecells.badge.ellipsis"
+        case .json: "curlybraces"
+        case .yaml: "list.bullet.rectangle"
+        case .html: "globe"
+        case .css: "paintbrush"
+        case .javaScript: "curlybraces.square"
+        case .swift: "swift"
+        case .python: "chevron.left.forwardslash.chevron.right"
+        }
+    }
+
+    var menuColor: NSColor {
+        switch self {
+        case .text: .systemGray
+        case .word: .systemBlue
+        case .excel: .systemGreen
+        case .powerPoint: .systemRed
+        case .markdown: .systemIndigo
+        case .richText: .systemPurple
+        case .csv: .systemTeal
+        case .json: .systemOrange
+        case .yaml: .systemPink
+        case .html: .systemBlue
+        case .css: .systemCyan
+        case .javaScript: .systemYellow
+        case .swift: .systemOrange
+        case .python: .systemBlue
         }
     }
 }
 
-private struct ApplicationMenuOption {
+private struct ApplicationMenuOption: Codable {
     let preferenceID: String
     let name: String
     let path: String
     let fallbackSymbol: String
+    let isEnabledByDefault: Bool?
+    let supportedExtensions: [String]?
+    let opensDirectories: Bool?
+    let menuIconData: Data?
 
-    init(preferenceID: String, name: String, path: String, fallbackSymbol: String) {
+    init(
+        preferenceID: String,
+        name: String,
+        path: String,
+        fallbackSymbol: String,
+        isEnabledByDefault: Bool? = true,
+        supportedExtensions: [String]? = nil,
+        opensDirectories: Bool? = nil,
+        menuIconData: Data? = nil
+    ) {
         self.preferenceID = preferenceID
         self.name = name
         self.path = path
         self.fallbackSymbol = fallbackSymbol
+        self.isEnabledByDefault = isEnabledByDefault
+        self.supportedExtensions = supportedExtensions
+        self.opensDirectories = opensDirectories
+        self.menuIconData = menuIconData
     }
 
-    var isInstalled: Bool { FileManager.default.fileExists(atPath: path) }
-
-    var menuIcon: NSImage? {
+    var fallbackMenuIcon: NSImage? {
         NSImage(systemSymbolName: fallbackSymbol, accessibilityDescription: name)
     }
 
@@ -401,16 +555,37 @@ private struct MenuItemSetting: Codable {
 private struct MenuConfiguration: Codable {
     let newFiles: [String: MenuItemSetting]
     let applications: [String: MenuItemSetting]
+    let applicationOptions: [ApplicationMenuOption]?
 
     func newFileSetting(for id: String) -> MenuItemSetting {
-        newFiles[id] ?? .defaults
+        if let setting = newFiles[id] {
+            return setting
+        }
+        let originalFileTypes = ["text", "word", "excel", "powerpoint"]
+        return MenuItemSetting(
+            isEnabled: originalFileTypes.contains(id),
+            placement: .submenu
+        )
     }
 
     func applicationSetting(for id: String) -> MenuItemSetting {
-        applications[id] ?? .defaults
+        if let setting = applications[id] {
+            return setting
+        }
+        let originalApplicationIDs = Set(
+            ApplicationMenuOption.defaults.map(\.preferenceID) + ["other"]
+        )
+        return MenuItemSetting(
+            isEnabled: originalApplicationIDs.contains(id),
+            placement: .submenu
+        )
     }
 
-    static let defaults = MenuConfiguration(newFiles: [:], applications: [:])
+    static let defaults = MenuConfiguration(
+        newFiles: [:],
+        applications: [:],
+        applicationOptions: nil
+    )
 }
 
 private enum PreferenceStorage {

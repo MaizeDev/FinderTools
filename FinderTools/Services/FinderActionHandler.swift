@@ -78,15 +78,17 @@ final class FinderActionHandler {
     }
 
     private func createFile(in directoryURL: URL, fileExtension: String) throws {
-        guard ["txt", "docx", "xlsx", "pptx"].contains(fileExtension) else {
+        let supportedExtensions = [
+            "txt", "docx", "xlsx", "pptx", "md", "rtf", "csv", "json",
+            "yaml", "html", "css", "js", "swift", "py"
+        ]
+        guard supportedExtensions.contains(fileExtension) else {
             throw FinderActionError.unsupportedFileType
         }
 
         let destinationURL = uniqueDestinationURL(in: directoryURL, fileExtension: fileExtension)
 
-        if fileExtension == "txt" {
-            try Data().write(to: destinationURL, options: .withoutOverwriting)
-        } else {
+        if ["docx", "xlsx", "pptx"].contains(fileExtension) {
             guard let plugInsURL = Bundle.main.builtInPlugInsURL,
                   let extensionBundle = Bundle(
                     url: plugInsURL.appendingPathComponent("FinderToolsExtension.appex", isDirectory: true)
@@ -95,10 +97,47 @@ final class FinderActionHandler {
                 throw FinderActionError.missingTemplate(fileExtension)
             }
             try FileManager.default.copyItem(at: templateURL, to: destinationURL)
+        } else {
+            let contents = initialContents(for: fileExtension)
+            try contents.write(to: destinationURL, options: .withoutOverwriting)
         }
 
         logger.notice("Created file: \(destinationURL.path, privacy: .public)")
         NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
+    }
+
+    private func initialContents(for fileExtension: String) -> Data {
+        let text: String
+        switch fileExtension {
+        case "md":
+            text = "# 未命名\n"
+        case "rtf":
+            text = "{\\rtf1\\ansi\n}"
+        case "json":
+            text = "{\n}\n"
+        case "yaml":
+            text = "---\n"
+        case "html":
+            text = """
+            <!doctype html>
+            <html lang="zh-CN">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>未命名</title>
+            </head>
+            <body>
+
+            </body>
+            </html>
+
+            """
+        case "swift":
+            text = "import Foundation\n\n"
+        default:
+            text = ""
+        }
+        return Data(text.utf8)
     }
 
     private func open(_ itemURLs: [URL], with applicationURL: URL, accessToken: FolderAccessToken) {

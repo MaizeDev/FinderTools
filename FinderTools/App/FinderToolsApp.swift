@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var receivedFinderActionDuringLaunch = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        FinderMenuPreferences.updateApplications(AppDiscovery.allApplications())
         FinderMenuPreferences.startSyncingWithExtension()
 
         // LSUIElement keeps a background launch out of the Dock. A normal user

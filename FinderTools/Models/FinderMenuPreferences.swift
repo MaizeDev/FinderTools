@@ -22,17 +22,21 @@ struct FinderMenuItemSetting: Codable {
 struct FinderMenuConfiguration: Codable {
     let newFiles: [String: FinderMenuItemSetting]
     let applications: [String: FinderMenuItemSetting]
+    let applicationOptions: [ApplicationOption]
 }
 
 enum FinderMenuPreferences {
     static let store = UserDefaults.standard
 
-    static let newFileIDs = ["text", "word", "excel", "powerpoint"]
-    static let applicationIDs = [
-        "textedit", "preview", "terminal", "iterm", "vscode", "cursor",
-        "sublime", "bbedit", "typora", "iina", "word", "excel",
-        "powerpoint", "xcode", "other"
+    static let newFileDefaults: [(id: String, isEnabled: Bool)] = [
+        ("text", true), ("word", true), ("excel", true), ("powerpoint", true),
+        ("markdown", false), ("richtext", false), ("csv", false),
+        ("json", false), ("yaml", false), ("html", false), ("css", false),
+        ("javascript", false), ("swift", false), ("python", false)
     ]
+
+    private static let applicationCatalogKey = "installedApplicationCatalog"
+    private static let applicationCatalogRefreshDateKey = "installedApplicationCatalogRefreshDate"
 
     private static let updateNotification = Notification.Name(
         "com.wheat.FinderTools.menuPreferencesDidChange"
@@ -76,22 +80,64 @@ enum FinderMenuPreferences {
         )
     }
 
+    static func updateApplications(_ applications: [ApplicationOption]) {
+        guard let data = try? JSONEncoder().encode(applications) else { return }
+        store.set(data, forKey: applicationCatalogKey)
+        store.set(Date(), forKey: applicationCatalogRefreshDateKey)
+        notifyExtension()
+    }
+
+    static var installedApplications: [ApplicationOption] {
+        storedApplications
+    }
+
+    static var applicationCatalogRefreshDate: Date? {
+        store.object(forKey: applicationCatalogRefreshDateKey) as? Date
+    }
+
     private static var configuration: FinderMenuConfiguration {
-        FinderMenuConfiguration(
-            newFiles: settings(group: "newFile", ids: newFileIDs),
-            applications: settings(group: "application", ids: applicationIDs)
+        let applications = storedApplications
+        let allApplicationSettings = settings(
+            group: "application",
+            defaults: applications.map { ($0.preferenceID, $0.isEnabledByDefault) }
+                + [("other", true)]
         )
+        let enabledApplications = applications.filter {
+            allApplicationSettings[$0.preferenceID]?.isEnabled == true
+        }
+        var enabledApplicationSettings = Dictionary(
+            uniqueKeysWithValues: enabledApplications.compactMap { application in
+                allApplicationSettings[application.preferenceID].map {
+                    (application.preferenceID, $0)
+                }
+            }
+        )
+        enabledApplicationSettings["other"] = allApplicationSettings["other"]
+
+        return FinderMenuConfiguration(
+            newFiles: settings(group: "newFile", defaults: newFileDefaults),
+            applications: enabledApplicationSettings,
+            applicationOptions: enabledApplications
+        )
+    }
+
+    private static var storedApplications: [ApplicationOption] {
+        guard let data = store.data(forKey: applicationCatalogKey),
+              let applications = try? JSONDecoder().decode([ApplicationOption].self, from: data) else {
+            return []
+        }
+        return applications
     }
 
     private static func settings(
         group: String,
-        ids: [String]
+        defaults: [(id: String, isEnabled: Bool)]
     ) -> [String: FinderMenuItemSetting] {
-        Dictionary(uniqueKeysWithValues: ids.map { id in
+        Dictionary(uniqueKeysWithValues: defaults.map { id, defaultEnabled in
             let enabledKey = enabledKey(group: group, id: id)
             let placementKey = placementKey(group: group, id: id)
             let isEnabled = store.object(forKey: enabledKey) == nil
-                ? true
+                ? defaultEnabled
                 : store.bool(forKey: enabledKey)
             let placement = store.string(forKey: placementKey)
                 .flatMap(FinderMenuPlacement.init(rawValue:)) ?? .submenu
