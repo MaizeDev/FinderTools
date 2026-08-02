@@ -22,8 +22,8 @@
 
 1. 前往 [Releases](https://github.com/MaizeDev/FinderTools/releases) 下载 `FinderTools-1.0.dmg`。
 2. 打开 DMG，将 `FinderTools` 拖入“应用程序”文件夹。
-3. 第一次启动时，右键点击“应用程序”中的 FinderTools，选择“打开”，然后再次点击“打开”。
-4. 如果仍被 macOS 阻止，请前往“系统设置 → 隐私与安全性”，在页面下方点击“仍要打开”。
+3. 双击“应用程序”中的 FinderTools，尝试启动一次。
+4. 如果 macOS 阻止打开，请前往“系统设置 → 隐私与安全性”，在页面下方点击“仍要打开”，然后在确认窗口中点击“打开”。
 
 > 当前 V1.0 尚未使用 Apple Developer 证书签名和公证，因此第一次打开时会出现无法验证开发者的安全提示。软件源代码完全公开，可以在本仓库查看。
 
