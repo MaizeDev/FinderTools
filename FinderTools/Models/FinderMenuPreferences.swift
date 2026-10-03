@@ -1,4 +1,13 @@
 import Foundation
+import os
+
+enum FinderMenuConstants {
+    static let appBundleIdentifier = "com.wheat.FinderTools"
+    static let applicationCatalogKey = "installedApplicationCatalog"
+    static let applicationCatalogRefreshDateKey = "installedApplicationCatalogRefreshDate"
+    static let menuPreferencesDidChange = Notification.Name("com.wheat.FinderTools.menuPreferencesDidChange")
+    static let menuPreferencesSyncRequest = Notification.Name("com.wheat.FinderTools.menuPreferencesSyncRequest")
+}
 
 enum FinderMenuPlacement: String, CaseIterable, Identifiable, Codable {
     case primary
@@ -35,15 +44,8 @@ enum FinderMenuPreferences {
         ("javascript", false), ("swift", false), ("python", false)
     ]
 
-    private static let applicationCatalogKey = "installedApplicationCatalog"
-    private static let applicationCatalogRefreshDateKey = "installedApplicationCatalogRefreshDate"
-
-    private static let updateNotification = Notification.Name(
-        "com.wheat.FinderTools.menuPreferencesDidChange"
-    )
-    private static let syncRequestNotification = Notification.Name(
-        "com.wheat.FinderTools.menuPreferencesSyncRequest"
-    )
+    private static let updateNotification = FinderMenuConstants.menuPreferencesDidChange
+    private static let syncRequestNotification = FinderMenuConstants.menuPreferencesSyncRequest
     private static var syncRequestObserver: NSObjectProtocol?
 
     static func enabledKey(group: String, id: String) -> String {
@@ -78,7 +80,7 @@ enum FinderMenuPreferences {
 
     static func notifyExtension() {
         guard let data = try? JSONEncoder().encode(configuration) else {
-            Logger(subsystem: "com.wheat.FinderTools", category: "FinderMenuPreferences")
+            Logger(subsystem: FinderMenuConstants.appBundleIdentifier, category: "FinderMenuPreferences")
                 .error("Failed to encode Finder menu configuration for extension sync")
             return
         }
@@ -92,12 +94,12 @@ enum FinderMenuPreferences {
 
     static func updateApplications(_ applications: [ApplicationOption]) {
         guard let data = try? JSONEncoder().encode(applications) else {
-            Logger(subsystem: "com.wheat.FinderTools", category: "FinderMenuPreferences")
+            Logger(subsystem: FinderMenuConstants.appBundleIdentifier, category: "FinderMenuPreferences")
                 .error("Failed to encode application catalog for UserDefaults")
             return
         }
-        store.set(data, forKey: applicationCatalogKey)
-        store.set(Date(), forKey: applicationCatalogRefreshDateKey)
+        store.set(data, forKey: FinderMenuConstants.applicationCatalogKey)
+        store.set(Date(), forKey: FinderMenuConstants.applicationCatalogRefreshDateKey)
         notifyExtension()
     }
 
@@ -106,7 +108,7 @@ enum FinderMenuPreferences {
     }
 
     static var applicationCatalogRefreshDate: Date? {
-        store.object(forKey: applicationCatalogRefreshDateKey) as? Date
+        store.object(forKey: FinderMenuConstants.applicationCatalogRefreshDateKey) as? Date
     }
 
     private static var configuration: FinderMenuConfiguration {
@@ -136,7 +138,7 @@ enum FinderMenuPreferences {
     }
 
     private static var storedApplications: [ApplicationOption] {
-        guard let data = store.data(forKey: applicationCatalogKey),
+        guard let data = store.data(forKey: FinderMenuConstants.applicationCatalogKey),
               let applications = try? JSONDecoder().decode([ApplicationOption].self, from: data) else {
             return []
         }
