@@ -29,13 +29,14 @@ struct ApplicationOption: Identifiable, Codable, Sendable {
 }
 
 enum AppDiscovery {
-    // Conversational AI apps can advertise broad document types even though
-    // they are not useful general-purpose file editors/viewers.
     private static let excludedBundleIdentifiers: Set<String> = [
-        "com.alibaba.tongyi", // Qianwen / 千问
-        "com.openai.chat",   // ChatGPT
-        "com.openai.codex"   // ChatGPT Classic / Codex
+        "com.alibaba.tongyi",
+        "com.openai.chat",
+        "com.openai.codex"
     ]
+
+    private static let iconCacheLock = NSLock()
+    private static var iconCache: [String: Data] = [:]
 
     private struct CuratedApplication {
         let preferenceID: String
@@ -68,18 +69,13 @@ enum AppDiscovery {
                 path: path,
                 fallbackSymbol: fallbackSymbol,
                 isEnabledByDefault: true,
-                supportedExtensions: Array(
-                    matchedExtensions.union(fallbackExtensions)
-                ).sorted(),
+                supportedExtensions: Array(matchedExtensions.union(fallbackExtensions)).sorted(),
                 opensDirectories: opensDirectories,
                 menuIconData: cachedMenuIconData(for: path)
             )
         }
     }
 
-    // These are the common file families FinderTools intentionally supports.
-    // Launch Services supplies the matching apps; FinderTools does not walk
-    // every installed .app bundle anymore.
     private static let commonExtensions = [
         "txt", "md", "rtf", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv",
         "json", "yaml", "yml", "xml", "html", "css", "js", "ts", "swift", "py", "java", "c", "h", "cpp",
@@ -106,16 +102,12 @@ enum AppDiscovery {
         CuratedApplication(preferenceID: "iina", name: "IINA", path: "/Applications/IINA.app", fallbackSymbol: "play.rectangle", fallbackExtensions: ["mp3", "m4a", "wav", "flac", "mp4", "mov", "mkv", "avi"]),
         CuratedApplication(preferenceID: "word", name: "Microsoft Word", path: "/Applications/Microsoft Word.app", fallbackSymbol: "doc.text", fallbackExtensions: ["doc", "docx", "rtf", "txt", "pdf"]),
         CuratedApplication(preferenceID: "excel", name: "Microsoft Excel", path: "/Applications/Microsoft Excel.app", fallbackSymbol: "tablecells", fallbackExtensions: ["xls", "xlsx", "csv"]),
-        CuratedApplication(preferenceID: "powerpoint", name: "Microsoft PowerPoint", path: "/Applications/Microsoft PowerPoint.app", fallbackSymbol: "rectangle.on.rectangle.angled", fallbackExtensions: ["ppt", "pptx"]),
+        CuratedApplication(preferenceID: "powerpoint", name: "Microsoft PowerPoint", path: "/Applications/Microsoft PowerPoint.app", fallbackSymbol: "rectangle.on.rectangle.angled", fallbackExtensions: ["ppt", "pptx", "pdf"]),
         CuratedApplication(preferenceID: "xcode", name: "Xcode", path: "/Applications/Xcode.app", fallbackSymbol: "hammer", fallbackExtensions: ["swift", "c", "h", "cpp", "java"], opensDirectories: true)
     ]
 
     nonisolated static func allApplications() -> [ApplicationOption] {
-        let curatedByPath = Dictionary(
-            uniqueKeysWithValues: curatedApplications.map {
-                (standardizedPath($0.path), $0)
-            }
-        )
+        let curatedByPath = Dictionary(uniqueKeysWithValues: curatedApplications.map { (standardizedPath($0.path), $0) })
         var extensionsByApplicationPath: [String: Set<String>] = [:]
 
         for fileExtension in commonExtensions {
@@ -123,10 +115,7 @@ enum AppDiscovery {
 
             for applicationURL in NSWorkspace.shared.urlsForApplications(toOpen: contentType)
             where isEligibleApplication(applicationURL) {
-                extensionsByApplicationPath[
-                    standardizedPath(applicationURL.path),
-                    default: []
-                ].insert(fileExtension)
+                extensionsByApplicationPath[standardizedPath(applicationURL.path), default: []].insert(fileExtension)
             }
         }
 
@@ -134,16 +123,11 @@ enum AppDiscovery {
         for (path, matchedExtensions) in extensionsByApplicationPath {
             if let curated = curatedByPath[path] {
                 applicationsByPath[path] = curated.option(matchedExtensions: matchedExtensions)
-            } else if let discovered = discoveredApplication(
-                at: URL(fileURLWithPath: path),
-                matchedExtensions: matchedExtensions
-            ) {
+            } else if let discovered = discoveredApplication(at: URL(fileURLWithPath: path), matchedExtensions: matchedExtensions) {
                 applicationsByPath[path] = discovered
             }
         }
 
-        // Terminal apps and other curated exceptions may not register as
-        // document handlers, so retain them through this small explicit list.
         for curated in curatedApplications where FileManager.default.fileExists(atPath: curated.path) {
             let path = standardizedPath(curated.path)
             if applicationsByPath[path] == nil {
@@ -202,7 +186,7 @@ enum AppDiscovery {
               allowedApplicationRoots.contains(where: { path.hasPrefix($0 + "/") }),
               let bundle = Bundle(url: URL(fileURLWithPath: path)),
               let bundleIdentifier = bundle.bundleIdentifier,
-              bundleIdentifier != "com.wheat.FinderTools",
+              bundleIdentifier != FinderToolIdentifiers.mainAppBundleIdentifier,
               !excludedBundleIdentifiers.contains(bundleIdentifier),
               !plistFlag(bundle.object(forInfoDictionaryKey: "LSBackgroundOnly")),
               !plistFlag(bundle.object(forInfoDictionaryKey: "LSUIElement")) else {
@@ -230,6 +214,10 @@ enum AppDiscovery {
     }
 
     nonisolated private static func cachedMenuIconData(for path: String) -> Data? {
+        if let cached = iconCache[path] {
+            return cached
+        }
+
         let sourceImage = NSWorkspace.shared.icon(forFile: path)
         let pixelSize = NSSize(width: 36, height: 36)
         let thumbnail = NSImage(size: pixelSize)
@@ -246,10 +234,21 @@ enum AppDiscovery {
 
         guard let tiffData = thumbnail.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiffData) else { return nil }
-        return bitmap.representation(using: .png, properties: [:])
+
+        let pngData = bitmap.representation(using: .png, properties: [:])
+        iconCacheLock.lock()
+        defer { iconCacheLock.unlock() }
+        if let pngData {
+            iconCache[path] = pngData
+        }
+        return pngData
     }
 
     nonisolated private static func standardizedPath(_ path: String) -> String {
         URL(fileURLWithPath: path).standardizedFileURL.path
     }
+}
+
+private enum FinderToolIdentifiers {
+    static let mainAppBundleIdentifier = "com.wheat.FinderTools"
 }
