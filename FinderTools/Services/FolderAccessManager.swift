@@ -1,183 +1,269 @@
 import AppKit
 import os
+import UniformTypeIdentifiers
 
 @MainActor
-final class FolderAccessManager {
-    static let shared = FolderAccessManager()
+final class FinderActionHandler {
+    static let shared = FinderActionHandler()
 
-    private let bookmarksKey = "authorizedFolderBookmarks"
-    private let legacyBookmarkKey = "authorizedFolderBookmark"
-    private let logger = Logger(subsystem: "com.wheat.FinderTools", category: "FolderAccess")
+    private let logger = Logger(subsystem: "com.wheat.FinderTools", category: "FinderActionHandler")
 
     private init() {}
 
-    var authorizedFolders: [URL] {
-        resolveBookmarks().map(\.url)
+    func handle(_ commandURL: URL) {
+        guard commandURL.scheme == "findertools",
+              let components = URLComponents(url: commandURL, resolvingAgainstBaseURL: false),
+              let action = components.host else {
+            logger.error("Ignored an invalid Finder action URL")
+            return
+        }
+
+        let values = Dictionary(grouping: components.queryItems ?? [], by: \ .name)
+            .mapValues { $0.compactMap(\.value) }
+
+        do {
+            switch action {
+            case "create":
+                guard let directoryPath = values["directory"]?.first,
+                      let fileExtension = values["type"]?.first else {
+                    throw FinderActionError.invalidCommand
+                }
+                let directoryURL = URL(fileURLWithPath: directoryPath, isDirectory: true)
+                guard let accessToken = FolderAccessManager.shared.beginAccess(to: [directoryURL]) else {
+                    requestFolderAuthorization(for: commandURL)
+                    return
+                }
+                try createFile(in: directoryURL, fileExtension: fileExtension, accessToken: accessToken)
+
+            case "terminal":
+                guard let directoryPath = values["directory"]?.first else {
+                    throw FinderActionError.invalidCommand
+                }
+                let directoryURL = URL(fileURLWithPath: directoryPath, isDirectory: true)
+                guard let accessToken = FolderAccessManager.shared.beginAccess(to: [directoryURL]) else {
+                    requestFolderAuthorization(for: commandURL)
+                    return
+                }
+                openInTerminal(directoryURL, accessToken: accessToken)
+
+            case "open":
+                guard let applicationPath = values["application"]?.first else {
+                    throw FinderActionError.invalidCommand
+                }
+                let itemURLs = (values["item"] ?? []).map { URL(fileURLWithPath: $0) }
+                guard !itemURLs.isEmpty else { throw FinderActionError.invalidCommand }
+                guard let accessToken = FolderAccessManager.shared.beginAccess(to: itemURLs) else {
+                    requestFolderAuthorization(for: commandURL)
+                    return
+                }
+                open(itemURLs, with: URL(fileURLWithPath: applicationPath), accessToken: accessToken)
+
+            case "choose":
+                let itemURLs = (values["item"] ?? []).map { URL(fileURLWithPath: $0) }
+                guard !itemURLs.isEmpty else { throw FinderActionError.invalidCommand }
+                guard let accessToken = FolderAccessManager.shared.beginAccess(to: itemURLs) else {
+                    requestFolderAuthorization(for: commandURL)
+                    return
+                }
+                chooseApplication(for: itemURLs, accessToken: accessToken)
+
+            default:
+                throw FinderActionError.invalidCommand
+            }
+        } catch {
+            logger.error("Finder action failed: \(error.localizedDescription, privacy: .public)")
+            showError("操作失败", message: error.localizedDescription)
+        }
     }
 
-    @discardableResult
-    func chooseFolder() -> URL? {
+    private func createFile(in directoryURL: URL, fileExtension: String, accessToken: FolderAccessToken) throws {
+        let supportedExtensions = [
+            "txt", "docx", "xlsx", "pptx", "md", "rtf", "csv", "json",
+            "yaml", "html", "css", "js", "swift", "py"
+        ]
+        guard supportedExtensions.contains(fileExtension) else {
+            throw FinderActionError.unsupportedFileType
+        }
+
+        let destinationURL = uniqueDestinationURL(in: directoryURL, fileExtension: fileExtension)
+
+        if ["docx", "xlsx", "pptx"].contains(fileExtension) {
+            guard let plugInsURL = Bundle.main.builtInPlugInsURL,
+                  let extensionBundle = Bundle(
+                    url: plugInsURL.appendingPathComponent("FinderToolsExtension.appex", isDirectory: true)
+                  ),
+                  let templateURL = extensionBundle.url(forResource: "blank", withExtension: fileExtension) else {
+                throw FinderActionError.missingTemplate(fileExtension)
+            }
+            do {
+                try FileManager.default.copyItem(at: templateURL, to: destinationURL)
+            } catch {
+                logger.error("Failed to copy blank template for \(fileExtension): \(error.localizedDescription, privacy: .public)")
+                throw error
+            }
+        } else {
+            let contents = initialContents(for: fileExtension)
+            do {
+                try contents.write(to: destinationURL, options: .withoutOverwriting)
+            } catch {
+                logger.error("Failed to write initial contents for \(fileExtension) to \(destinationURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                throw error
+            }
+        }
+
+        logger.notice("Created file: \(destinationURL.path, privacy: .public)")
+        NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
+        _ = accessToken
+    }
+
+    private func initialContents(for fileExtension: String) -> Data {
+        let text: String
+        switch fileExtension {
+        case "md":
+            text = "# 未命名\n"
+        case "rtf":
+            text = "{\\rtf1\\ansi\n}"
+        case "json":
+            text = "{\n}\n"
+        case "yaml":
+            text = "---\n"
+        case "html":
+            text = """
+            <!doctype html>
+            <html lang=\"zh-CN\">
+            <head>
+              <meta charset=\"utf-8\">
+              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+              <title>未命名</title>
+            </head>
+            <body>
+
+            </body>
+            </html>
+
+            """
+        case "swift":
+            text = "import Foundation\n\n"
+        default:
+            text = ""
+        }
+        return Data(text.utf8)
+    }
+
+    private func open(_ itemURLs: [URL], with applicationURL: URL, accessToken: FolderAccessToken) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+
+        NSWorkspace.shared.open(
+            itemURLs,
+            withApplicationAt: applicationURL,
+            configuration: configuration
+        ) { [logger, accessToken] _, error in
+            _ = accessToken
+            if let error {
+                logger.error("Could not open selection: \(error.localizedDescription, privacy: .public)")
+                Task { @MainActor in
+                    self.showError("无法打开", message: error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func openInTerminal(_ directoryURL: URL, accessToken: FolderAccessToken) {
+        guard let terminalURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: "com.apple.Terminal"
+        ) else {
+            showError("无法打开终端", message: "这台 Mac 上找不到系统自带的“终端”软件。")
+            return
+        }
+
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.addsToRecentItems = false
+
+        NSWorkspace.shared.open(
+            [directoryURL],
+            withApplicationAt: terminalURL,
+            configuration: configuration
+        ) { [logger, accessToken] _, error in
+            _ = accessToken
+            if let error {
+                logger.error("Could not open directory in Terminal: \(error.localizedDescription, privacy: .public)")
+                Task { @MainActor in
+                    self.showError("无法打开终端", message: error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func chooseApplication(for itemURLs: [URL], accessToken: FolderAccessToken) {
         NSApp.activate(ignoringOtherApps: true)
 
         let panel = NSOpenPanel()
-        panel.title = "授权 FinderTools 使用文件夹"
-        panel.message = "只会授权你这次选择的文件夹。之后可以继续添加桌面、下载、文稿等其他位置。"
-        panel.prompt = "添加授权"
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
+        panel.title = "选择用于打开的软件"
+        panel.prompt = "选择"
+        panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.canCreateDirectories = false
+        panel.allowedContentTypes = [.application]
 
-        guard panel.runModal() == .OK, let folderURL = panel.url else { return nil }
+        guard panel.runModal() == .OK, let applicationURL = panel.url else { return }
+        open(itemURLs, with: applicationURL, accessToken: accessToken)
+    }
 
-        do {
-            let data = try folderURL.bookmarkData(
-                options: .withSecurityScope,
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
+    private func requestFolderAuthorization(for commandURL: URL) {
+        NSApp.activate(ignoringOtherApps: true)
 
-            let normalizedURL = folderURL.standardizedFileURL
-            let existingBookmarks = resolveBookmarks()
-            let alreadyAuthorized = existingBookmarks.contains {
-                $0.url.standardizedFileURL.path == normalizedURL.path
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "需要文件夹权限"
+        alert.informativeText = "请选择包含当前项目的文件夹。你可以只授权桌面、下载等需要使用的位置，并在“扩展权限”页面中随时添加或移除。"
+        alert.addButton(withTitle: "选择文件夹")
+        alert.addButton(withTitle: "取消")
+
+        guard alert.runModal() == .alertFirstButtonReturn,
+              FolderAccessManager.shared.chooseFolder() != nil else { return }
+        handle(commandURL)
+    }
+
+    private func uniqueDestinationURL(in directoryURL: URL, fileExtension: String) -> URL {
+        var index = 1
+
+        while true {
+            let suffix = index == 1 ? "" : " \(index)"
+            let candidate = directoryURL.appendingPathComponent("未命名\(suffix).\(fileExtension)")
+            if !FileManager.default.fileExists(atPath: candidate.path) {
+                return candidate
             }
-
-            if !alreadyAuthorized {
-                let bookmarkData = existingBookmarks.map(\.data) + [data]
-                UserDefaults.standard.set(bookmarkData, forKey: bookmarksKey)
-            }
-            logger.notice("Authorized folder: \(normalizedURL.path, privacy: .public)")
-            return normalizedURL
-        } catch {
-            logger.error("Could not save folder authorization: \(error.localizedDescription, privacy: .public)")
-            return nil
+            index += 1
         }
     }
 
-    func removeAuthorization(for folderURL: URL) {
-        let pathToRemove = folderURL.standardizedFileURL.path
-        let remainingBookmarks = resolveBookmarks()
-            .filter { $0.url.standardizedFileURL.path != pathToRemove }
-            .map(\.data)
-
-        UserDefaults.standard.set(remainingBookmarks, forKey: bookmarksKey)
-        logger.notice("Removed folder authorization: \(pathToRemove, privacy: .public)")
-    }
-
-    func beginAccess(to targetURLs: [URL]) -> FolderAccessToken? {
-        guard !targetURLs.isEmpty else { return nil }
-
-        let authorizedFolders = resolveBookmarks().map(\.url)
-        var foldersToAccess: [URL] = []
-
-        for targetURL in targetURLs {
-            guard let matchingFolder = authorizedFolders
-                .filter({ targetURL.isInside($0) })
-                .max(by: { $0.standardizedFileURL.path.count < $1.standardizedFileURL.path.count })
-            else {
-                return nil
-            }
-
-            if !foldersToAccess.contains(where: {
-                $0.standardizedFileURL.path == matchingFolder.standardizedFileURL.path
-            }) {
-                foldersToAccess.append(matchingFolder)
-            }
-        }
-
-        var accessedFolders: [URL] = []
-        for folderURL in foldersToAccess {
-            guard folderURL.startAccessingSecurityScopedResource() else {
-                accessedFolders.reversed().forEach { $0.stopAccessingSecurityScopedResource() }
-                logger.error("A saved folder authorization could not be activated")
-                return nil
-            }
-            accessedFolders.append(folderURL)
-        }
-
-        return FolderAccessToken(folderURLs: accessedFolders)
-    }
-
-    private func storedBookmarkData() -> [Data] {
-        if let bookmarks = UserDefaults.standard.array(forKey: bookmarksKey) as? [Data] {
-            return bookmarks
-        }
-
-        guard let legacyBookmark = UserDefaults.standard.data(forKey: legacyBookmarkKey) else {
-            return []
-        }
-
-        UserDefaults.standard.set([legacyBookmark], forKey: bookmarksKey)
-        UserDefaults.standard.removeObject(forKey: legacyBookmarkKey)
-        return [legacyBookmark]
-    }
-
-    private func resolveBookmarks() -> [ResolvedBookmark] {
-        let storedData = storedBookmarkData()
-        var resolvedBookmarks: [ResolvedBookmark] = []
-        var seenPaths = Set<String>()
-
-        for data in storedData {
-            do {
-                var isStale = false
-                let resolvedURL = try URL(
-                    resolvingBookmarkData: data,
-                    options: .withSecurityScope,
-                    relativeTo: nil,
-                    bookmarkDataIsStale: &isStale
-                )
-
-                let normalizedURL = resolvedURL.standardizedFileURL
-                guard seenPaths.insert(normalizedURL.path).inserted else { continue }
-
-                let currentData = if isStale {
-                    try normalizedURL.bookmarkData(
-                        options: .withSecurityScope,
-                        includingResourceValuesForKeys: nil,
-                        relativeTo: nil
-                    )
-                } else {
-                    data
-                }
-
-                resolvedBookmarks.append(ResolvedBookmark(data: currentData, url: normalizedURL))
-            } catch {
-                logger.error("Could not restore a folder authorization: \(error.localizedDescription, privacy: .public)")
-            }
-        }
-
-        let normalizedData = resolvedBookmarks.map(\.data)
-        if normalizedData != storedData {
-            UserDefaults.standard.set(normalizedData, forKey: bookmarksKey)
-        }
-
-        return resolvedBookmarks
+    private func showError(_ title: String, message: String) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: "好")
+        alert.runModal()
     }
 }
 
-final class FolderAccessToken: @unchecked Sendable {
-    private let folderURLs: [URL]
+private enum FinderActionError: LocalizedError {
+    case invalidCommand
+    case unsupportedFileType
+    case missingTemplate(String)
 
-    init(folderURLs: [URL]) {
-        self.folderURLs = folderURLs
-    }
-
-    deinit {
-        folderURLs.reversed().forEach { $0.stopAccessingSecurityScopedResource() }
-    }
-}
-
-private struct ResolvedBookmark {
-    let data: Data
-    let url: URL
-}
-
-private extension URL {
-    func isInside(_ folderURL: URL) -> Bool {
-        let folderPath = folderURL.standardizedFileURL.path
-        let targetPath = standardizedFileURL.path
-        return targetPath == folderPath || targetPath.hasPrefix(folderPath.hasSuffix("/") ? folderPath : folderPath + "/")
+    var errorDescription: String? {
+        switch self {
+        case .invalidCommand:
+            "Finder 传来的操作内容不完整。"
+        case .unsupportedFileType:
+            "不支持这种文件类型。"
+        case .missingTemplate(let fileExtension):
+            "找不到 .\(fileExtension) 空白模板。"
+        }
     }
 }
