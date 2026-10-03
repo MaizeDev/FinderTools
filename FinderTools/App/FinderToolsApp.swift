@@ -4,7 +4,7 @@ import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let logger = Logger(subsystem: "com.wheat.FinderTools", category: "AppDelegate")
+    private let logger = Logger(subsystem: FinderMenuConstants.BundleID.main, category: "AppDelegate")
     private var receivedFinderActionDuringLaunch = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -15,6 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // launch has no Finder command, so it becomes a regular foreground app.
         guard !receivedFinderActionDuringLaunch else { return }
         showForegroundApp(NSApp)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        FinderMenuPreferences.stopSyncingWithExtension()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
