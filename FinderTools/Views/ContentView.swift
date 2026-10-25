@@ -8,24 +8,14 @@ struct ContentView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            
+        // C-12：改用系统侧边栏与标准标题栏，去掉覆盖在内容上方的透明拖拽层，
+        // 顶部 48pt 内的按钮（例如“打开方式”页的“刷新”）不再被吞点击。
+        NavigationSplitView {
             SidebarView(selection: $selection)
-                .frame(width: 268)
-
-            Divider()
-
+                .navigationSplitViewColumnWidth(min: 240, ideal: 268, max: 320)
+        } detail: {
             detailView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .toolbar(removing: .title)
-        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .overlay(alignment: .top) {
-            Color.clear
-                .frame(height: 48)
-                .contentShape(.rect)
-                .gesture(WindowDragGesture())
-                .allowsWindowActivationEvents()
         }
         .frame(minWidth: 760, minHeight: 500)
     }
@@ -51,6 +41,7 @@ struct ContentView: View {
 #Preview("打开方式") {
     ContentView(selection: .openWith)
         .frame(width: 900, height: 620)
+        .environment(ApplicationCatalog.shared)
 }
 
 #Preview("扩展权限") {

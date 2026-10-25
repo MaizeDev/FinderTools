@@ -8,8 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var receivedFinderActionDuringLaunch = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        FinderMenuPreferences.updateApplications(AppDiscovery.allApplications())
-        FinderMenuPreferences.startSyncingWithExtension()
+        ApplicationCatalog.shared.start()
 
         // LSUIElement keeps a background launch out of the Dock. A normal user
         // launch has no Finder command, so it becomes a regular foreground app.
@@ -46,7 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showForegroundApp(_ application: NSApplication) {
         application.setActivationPolicy(.regular)
         application.unhide(nil)
-        application.activate(ignoringOtherApps: true)
+        application.activate()
     }
 }
 
@@ -57,6 +56,7 @@ struct FinderToolsApp: App {
     var body: some Scene {
         WindowGroup("FinderTools", id: "main") {
             ContentView()
+                .environment(ApplicationCatalog.shared)
         }
         .defaultSize(width: 900, height: 620)
         .windowResizability(.contentMinSize)

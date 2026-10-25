@@ -8,6 +8,14 @@
 
 /* Begin PBXBuildFile section */
 		A1000000000000000000000B /* FinderToolsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* FinderToolsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D73DEB9A308CFC1700DFE804 /* ApplicationMenuOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73DEB96308CFC1700DFE804 /* ApplicationMenuOption.swift */; };
+		D73DEB9B308CFC1700DFE804 /* NewFileType.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73DEB98308CFC1700DFE804 /* NewFileType.swift */; };
+		D73DEB9C308CFC1700DFE804 /* MenuConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73DEB97308CFC1700DFE804 /* MenuConfiguration.swift */; };
+		D73DEB9D308CFC1700DFE804 /* ApplicationMenuOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73DEB96308CFC1700DFE804 /* ApplicationMenuOption.swift */; };
+		D73DEB9E308CFC1700DFE804 /* NewFileType.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73DEB98308CFC1700DFE804 /* NewFileType.swift */; };
+		D73DEB9F308CFC1700DFE804 /* MenuConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73DEB97308CFC1700DFE804 /* MenuConfiguration.swift */; };
+		D7A1C00230A0000000000001 /* SelectionMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A1C00130A0000000000001 /* SelectionMatcher.swift */; };
+		D7A1C00330A0000000000001 /* SelectionMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A1C00130A0000000000001 /* SelectionMatcher.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -17,6 +25,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = A10000000000000000000006;
 			remoteInfo = FinderToolsExtension;
+		};
+		D73DEBCE308D7EF800DFE804 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D7C55C43301E2C8C00114D5B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D7C55C4A301E2C8C00114D5B;
+			remoteInfo = FinderTools;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -36,6 +51,11 @@
 
 /* Begin PBXFileReference section */
 		A10000000000000000000001 /* FinderToolsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FinderToolsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D73DEB96308CFC1700DFE804 /* ApplicationMenuOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationMenuOption.swift; sourceTree = "<group>"; };
+		D73DEB97308CFC1700DFE804 /* MenuConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuConfiguration.swift; sourceTree = "<group>"; };
+		D73DEB98308CFC1700DFE804 /* NewFileType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewFileType.swift; sourceTree = "<group>"; };
+		D73DEBCA308D7EF800DFE804 /* FinderToolsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FinderToolsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D7A1C00130A0000000000001 /* SelectionMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionMatcher.swift; sourceTree = "<group>"; };
 		D7C55C4B301E2C8C00114D5B /* FinderTools.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FinderTools.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -65,6 +85,11 @@
 			path = FinderToolsExtension;
 			sourceTree = "<group>";
 		};
+		D73DEBCB308D7EF800DFE804 /* FinderToolsTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FinderToolsTests;
+			sourceTree = "<group>";
+		};
 		D7C55C4D301E2C8C00114D5B /* FinderTools */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -83,6 +108,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D73DEBC7308D7EF800DFE804 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D7C55C48301E2C8C00114D5B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -93,11 +125,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		D73DEB99308CFC1700DFE804 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				D73DEB96308CFC1700DFE804 /* ApplicationMenuOption.swift */,
+				D73DEB97308CFC1700DFE804 /* MenuConfiguration.swift */,
+				D73DEB98308CFC1700DFE804 /* NewFileType.swift */,
+				D7A1C00130A0000000000001 /* SelectionMatcher.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		D7C55C42301E2C8C00114D5B = {
 			isa = PBXGroup;
 			children = (
+				D73DEB99308CFC1700DFE804 /* Shared */,
 				D7C55C4D301E2C8C00114D5B /* FinderTools */,
 				A10000000000000000000002 /* FinderToolsExtension */,
+				D73DEBCB308D7EF800DFE804 /* FinderToolsTests */,
 				D7C55C4C301E2C8C00114D5B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -107,6 +152,7 @@
 			children = (
 				D7C55C4B301E2C8C00114D5B /* FinderTools.app */,
 				A10000000000000000000001 /* FinderToolsExtension.appex */,
+				D73DEBCA308D7EF800DFE804 /* FinderToolsTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -135,6 +181,29 @@
 			productName = FinderToolsExtension;
 			productReference = A10000000000000000000001 /* FinderToolsExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
+		};
+		D73DEBC9308D7EF800DFE804 /* FinderToolsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D73DEBD0308D7EF800DFE804 /* Build configuration list for PBXNativeTarget "FinderToolsTests" */;
+			buildPhases = (
+				D73DEBC6308D7EF800DFE804 /* Sources */,
+				D73DEBC7308D7EF800DFE804 /* Frameworks */,
+				D73DEBC8308D7EF800DFE804 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D73DEBCF308D7EF800DFE804 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D73DEBCB308D7EF800DFE804 /* FinderToolsTests */,
+			);
+			name = FinderToolsTests;
+			packageProductDependencies = (
+			);
+			productName = FinderToolsTests;
+			productReference = D73DEBCA308D7EF800DFE804 /* FinderToolsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		D7C55C4A301E2C8C00114D5B /* FinderTools */ = {
 			isa = PBXNativeTarget;
@@ -167,11 +236,15 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2620;
+				LastSwiftUpdateCheck = 2710;
+				LastUpgradeCheck = 2710;
 				TargetAttributes = {
 					A10000000000000000000006 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					D73DEBC9308D7EF800DFE804 = {
+						CreatedOnToolsVersion = 27.1;
+						TestTargetID = D7C55C4A301E2C8C00114D5B;
 					};
 					D7C55C4A301E2C8C00114D5B = {
 						CreatedOnToolsVersion = 26.2;
@@ -194,12 +267,20 @@
 			targets = (
 				D7C55C4A301E2C8C00114D5B /* FinderTools */,
 				A10000000000000000000006 /* FinderToolsExtension */,
+				D73DEBC9308D7EF800DFE804 /* FinderToolsTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A10000000000000000000004 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D73DEBC8308D7EF800DFE804 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -220,6 +301,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D73DEB9A308CFC1700DFE804 /* ApplicationMenuOption.swift in Sources */,
+				D73DEB9B308CFC1700DFE804 /* NewFileType.swift in Sources */,
+				D73DEB9C308CFC1700DFE804 /* MenuConfiguration.swift in Sources */,
+				D7A1C00330A0000000000001 /* SelectionMatcher.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D73DEBC6308D7EF800DFE804 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -227,6 +319,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D73DEB9D308CFC1700DFE804 /* ApplicationMenuOption.swift in Sources */,
+				D73DEB9E308CFC1700DFE804 /* NewFileType.swift in Sources */,
+				D73DEB9F308CFC1700DFE804 /* MenuConfiguration.swift in Sources */,
+				D7A1C00230A0000000000001 /* SelectionMatcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -238,6 +334,11 @@
 			target = A10000000000000000000006 /* FinderToolsExtension */;
 			targetProxy = A1000000000000000000000C /* PBXContainerItemProxy */;
 		};
+		D73DEBCF308D7EF800DFE804 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D7C55C4A301E2C8C00114D5B /* FinderTools */;
+			targetProxy = D73DEBCE308D7EF800DFE804 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -248,9 +349,10 @@
 				CODE_SIGN_ENTITLEMENTS = FinderToolsExtension/FinderToolsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
-				ENABLE_USER_SELECTED_FILES = readwrite;
+				ENABLE_USER_SELECTED_FILES = none;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FinderToolsExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -258,12 +360,12 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wheat.FinderTools.FinderToolsExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -274,9 +376,10 @@
 				CODE_SIGN_ENTITLEMENTS = FinderToolsExtension/FinderToolsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
-				ENABLE_USER_SELECTED_FILES = readwrite;
+				ENABLE_USER_SELECTED_FILES = none;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FinderToolsExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -284,12 +387,52 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wheat.FinderTools.FinderToolsExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		D73DEBD1308D7EF800DFE804 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wheat.FinderToolsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FinderTools.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FinderTools";
+			};
+			name = Debug;
+		};
+		D73DEBD2308D7EF800DFE804 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wheat.FinderToolsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FinderTools.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FinderTools";
 			};
 			name = Release;
 		};
@@ -327,6 +470,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -351,6 +495,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -390,6 +535,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -407,6 +553,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -419,7 +566,8 @@
 				CODE_SIGN_ENTITLEMENTS = FinderTools/FinderTools.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readwrite;
@@ -430,7 +578,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wheat.FinderTools;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -439,7 +587,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -451,7 +599,8 @@
 				CODE_SIGN_ENTITLEMENTS = FinderTools/FinderTools.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readwrite;
@@ -462,7 +611,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wheat.FinderTools;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -471,7 +620,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
@@ -483,6 +632,15 @@
 			buildConfigurations = (
 				A10000000000000000000007 /* Debug */,
 				A10000000000000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D73DEBD0308D7EF800DFE804 /* Build configuration list for PBXNativeTarget "FinderToolsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D73DEBD1308D7EF800DFE804 /* Debug */,
+				D73DEBD2308D7EF800DFE804 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

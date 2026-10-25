@@ -1,0 +1,57 @@
+FinderTools 安装说明 / Install Guide
+=====================================
+
+中文
+----
+
+1. 把 FinderTools 拖到“应用程序”文件夹
+   在打开的磁盘窗口里，按住 FinderTools 图标，拖到右侧的 Applications 图标上，
+   松开鼠标即可。
+
+2. 第一次打开会被 macOS 拦截
+   本应用没有使用 Apple Developer 证书签名，也没有经过公证，所以第一次打开时会
+   出现“无法打开，因为无法验证开发者”之类的提示。请打开：
+   系统设置 → 隐私与安全性 → 滚动到页面底部 → 点击“仍要打开” → 在确认窗口点“打开”。
+   只需操作一次，之后可以正常打开。
+
+3. 首次使用
+   - 打开 FinderTools。
+   - 进入“扩展权限”，点击“打开扩展管理”，启用 FinderTools 访达扩展。
+   - 在“已授权的文件夹”中点击“添加文件夹”，添加需要右键菜单的位置，
+     例如桌面、下载、文稿、影片。
+   - 回到访达，在已授权的文件夹（或其子文件夹）中点击右键即可。
+
+4. 反馈
+   遇到问题或有功能建议，请到 GitHub Issues 反馈：
+   https://github.com/MaizeDev/FinderTools/issues
+
+安装完成后，可以把这个说明文件和磁盘图标一起拖到废纸篓。
+
+
+English
+-------
+
+1. Drag FinderTools to the Applications folder
+   In the disk image window, drag the FinderTools icon onto the Applications icon
+   on the right and release it.
+
+2. macOS blocks the first launch
+   This app is not signed with an Apple Developer certificate and is not notarized,
+   so the first launch shows an "unidentified developer" warning. Open:
+   System Settings → Privacy & Security → scroll to the bottom → click "Open Anyway"
+   → click "Open" in the confirmation dialog.
+   You only need to do this once.
+
+3. First use
+   - Open FinderTools.
+   - Go to "Extension Permissions", click "Open Extension Manager" and enable the
+     FinderTools Finder extension.
+   - Under "Authorized Folders", click "Add Folder" and add the locations where you
+     want the context menu, such as Desktop, Downloads, Documents or Movies.
+   - Back in Finder, right-click inside an authorized folder or its subfolders.
+
+4. Feedback
+   If you encounter a problem or have a feature suggestion, please open an issue at:
+   https://github.com/MaizeDev/FinderTools/issues
+
+After installing, you can drag this guide and the disk icon to the Trash.

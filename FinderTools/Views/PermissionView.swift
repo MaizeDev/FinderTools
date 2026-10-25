@@ -1,10 +1,12 @@
+import AppKit
+import Combine
 import FinderSync
 import SwiftUI
 
 struct PermissionView: View {
     @State private var isEnabled = FIFinderSyncController.isExtensionEnabled
-    @State private var authorizedFolders = FolderAccessManager.shared.authorizedFolders
-    @State private var folderPendingRemoval: FolderRemovalRequest?
+    @State private var authorizedFolders: [AuthorizedFolder] = []
+    @State private var folderPendingRemoval: AuthorizedFolder?
 
     var body: some View {
         PageContainer {
@@ -55,9 +57,9 @@ struct PermissionView: View {
                                 addFolder()
                             }
                         } else {
-                            ForEach(Array(authorizedFolders.enumerated()), id: \.element.path) { index, folder in
+                            ForEach(Array(authorizedFolders.enumerated()), id: \.element.id) { index, folder in
                                 AuthorizedFolderRow(folder: folder) {
-                                    folderPendingRemoval = FolderRemovalRequest(folder: folder)
+                                    folderPendingRemoval = folder
                                 }
 
                                 if index < authorizedFolders.count - 1 {
@@ -70,7 +72,7 @@ struct PermissionView: View {
 
                 InfoCard(
                     icon: "lock.shield",
-                    text: "FinderTools 只能使用列表中的文件夹及其子文件夹。你可以分别添加桌面、下载、文稿、影片等位置，不需要授权整个个人目录。"
+                    text: "FinderTools 的右键菜单只会在列表中的文件夹及其子文件夹里出现，也只能在这些位置执行操作。移除某个文件夹后，该位置的菜单也会消失；没有授权文件夹时访达里不会出现 FinderTools 菜单。你可以分别添加桌面、下载、文稿、影片等位置，不需要授权整个个人目录。"
                 )
 
                 Button("刷新状态") {
@@ -79,21 +81,49 @@ struct PermissionView: View {
                 .controlSize(.small)
             }
         }
-        .alert(item: $folderPendingRemoval) { request in
-            Alert(
-                title: Text("移除文件夹授权？"),
-                message: Text("移除“\(request.folder.lastPathComponent)”后，FinderTools 将无法在这个文件夹及其子文件夹中执行操作。"),
-                primaryButton: .destructive(Text("移除")) {
-                    FolderAccessManager.shared.removeAuthorization(for: request.folder)
-                    refreshState()
-                },
-                secondaryButton: .cancel(Text("取消"))
-            )
+        .task {
+            refreshState()
+        }
+        // D-05：从系统设置（扩展管理）切回来、或 App 重新激活时自动刷新，
+        // 不再需要手动点“刷新状态”。
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshState()
+        }
+        .alert(
+            "移除文件夹授权？",
+            isPresented: isRemovalAlertPresented,
+            presenting: folderPendingRemoval
+        ) { folder in
+            Button("移除", role: .destructive) {
+                FolderAccessManager.shared.removeAuthorization(for: folder)
+                refreshState()
+            }
+            Button("取消", role: .cancel) {}
+        } message: { folder in
+            Text("移除“\(folder.displayName)”后，FinderTools 将无法在这个文件夹及其子文件夹中执行操作。")
         }
     }
 
     private var folderCountDescription: String {
-        authorizedFolders.isEmpty ? "尚未添加任何文件夹" : "共 \(authorizedFolders.count) 个，可单独添加或移除"
+        guard !authorizedFolders.isEmpty else { return "尚未添加任何文件夹" }
+
+        let unavailableCount = authorizedFolders.filter { !$0.isAvailable }.count
+        if unavailableCount == 0 {
+            return "共 \(authorizedFolders.count) 个，可单独添加或移除"
+        }
+        return "共 \(authorizedFolders.count) 个，其中 \(unavailableCount) 个暂时不可用"
+    }
+
+    /// C-10：新式 `alert` 需要 `Bool` 绑定；关闭对话框时清掉待移除的文件夹。
+    private var isRemovalAlertPresented: Binding<Bool> {
+        Binding(
+            get: { folderPendingRemoval != nil },
+            set: { isPresented in
+                if !isPresented {
+                    folderPendingRemoval = nil
+                }
+            }
+        )
     }
 
     private func addFolder() {
@@ -101,33 +131,43 @@ struct PermissionView: View {
         refreshState()
     }
 
+    /// 只有这里会触发迁移/重建书签（会写 UserDefaults）；读取本身不写盘。
+    /// 调用时机：页面出现（`.task`）、点“刷新状态”、添加或移除授权之后。
     private func refreshState() {
+        FolderAccessManager.shared.refreshAuthorizations()
         isEnabled = FIFinderSyncController.isExtensionEnabled
         authorizedFolders = FolderAccessManager.shared.authorizedFolders
     }
 }
 
 private struct AuthorizedFolderRow: View {
-    let folder: URL
+    let folder: AuthorizedFolder
     let remove: () -> Void
 
     var body: some View {
         SettingsRow {
             HStack(spacing: 14) {
-                Image(systemName: "folder.fill")
+                Image(systemName: folder.isAvailable ? "folder.fill" : "folder.badge.questionmark")
                     .font(.system(size: 24))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(folder.isAvailable ? .blue : .orange)
                     .frame(width: 36)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(folderName)
-                        .font(.body.weight(.medium))
-                    Text(folder.path(percentEncoded: false))
+                    HStack(spacing: 8) {
+                        Text(folder.displayName)
+                            .font(.body.weight(.medium))
+
+                        if !folder.isAvailable {
+                            UnavailableBadge()
+                        }
+                    }
+
+                    Text(folder.pathDescription)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .help(folder.path(percentEncoded: false))
+                        .help(folder.pathDescription)
                 }
             }
         } trailing: {
@@ -137,12 +177,20 @@ private struct AuthorizedFolderRow: View {
             .buttonStyle(.borderless)
             .foregroundStyle(.red)
             .help("移除这个文件夹的授权")
-            .accessibilityLabel("移除 \(folderName) 的授权")
+            .accessibilityLabel("移除 \(folder.displayName) 的授权")
         }
     }
+}
 
-    private var folderName: String {
-        FileManager.default.displayName(atPath: folder.path)
+private struct UnavailableBadge: View {
+    var body: some View {
+        Text("不可用")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.orange)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color.orange.opacity(0.12), in: Capsule())
+            .help("当前无法访问这个文件夹：外置硬盘可能未挂载，或文件夹已被移动/改名。插回硬盘或恢复文件夹后会自动恢复。")
     }
 }
 
@@ -158,9 +206,10 @@ private struct EmptyFolderState: View {
             VStack(spacing: 4) {
                 Text("还没有授权文件夹")
                     .font(.body.weight(.semibold))
-                Text("添加需要使用右键功能的文件夹，例如桌面或下载。")
+                Text("右键菜单只会出现在已授权的文件夹里。请先添加一个文件夹（例如桌面或下载）；没有授权文件夹时，访达里不会出现 FinderTools 菜单。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
 
             Button("添加第一个文件夹", action: addFolder)
@@ -169,12 +218,6 @@ private struct EmptyFolderState: View {
         .padding(.vertical, 28)
         .padding(.horizontal, 18)
     }
-}
-
-private struct FolderRemovalRequest: Identifiable {
-    let folder: URL
-
-    var id: String { folder.standardizedFileURL.path }
 }
 
 private struct PermissionStatus: View {

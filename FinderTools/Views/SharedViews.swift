@@ -65,7 +65,7 @@ struct MenuItemControls: View {
     let isAvailable: Bool
 
     @AppStorage private var isEnabled: Bool
-    @AppStorage private var placement: FinderMenuPlacement
+    @AppStorage private var placement: MenuPlacement
 
     init(
         itemName: String,
@@ -92,7 +92,7 @@ struct MenuItemControls: View {
         if isAvailable {
             HStack(spacing: 14) {
                 Picker("\(itemName)的菜单位置", selection: $placement) {
-                    ForEach(FinderMenuPlacement.allCases) { option in
+                    ForEach(MenuPlacement.allCases) { option in
                         Text(option.title).tag(option)
                     }
                 }

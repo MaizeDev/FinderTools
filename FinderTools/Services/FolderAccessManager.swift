@@ -5,25 +5,39 @@ import os
 final class FolderAccessManager {
     static let shared = FolderAccessManager()
 
-    private let bookmarksKey = "authorizedFolderBookmarks"
-    private let legacyBookmarkKey = "authorizedFolderBookmark"
+    private let store = FolderAuthorizationStore()
     private let logger = Logger(subsystem: "com.wheat.FinderTools", category: "FolderAccess")
 
     private init() {}
 
-    var authorizedFolders: [URL] {
-        resolveBookmarks().map(\.url)
+    /// 只读接口：绝不写 `UserDefaults`。
+    /// 暂时解析失败的记录以 `isAvailable == false` 返回，但仍留在结果里（B-01）。
+    var authorizedFolders: [AuthorizedFolder] {
+        store.resolvedRecords()
     }
 
+    /// C-05：提供给扩展的目录监听范围。只读，不写存储。
+    ///
+    /// 有书签能解析时用解析出的真实路径；目录暂时不可用（外置硬盘未挂载、被改名）时
+    /// 退回最后已知路径，这样硬盘插回后不需要重新授权。排序后再发，避免每次广播因
+    /// 顺序不同被误判成变化。
+    var authorizedFolderPaths: [String] {
+        store.resolvedRecords()
+            .compactMap { $0.url?.path(percentEncoded: false) }
+            .sorted()
+    }
+
+    /// - Parameter suggestedDirectory: 授权面板默认定位到的目录，通常是用户要操作的目标目录。
+    ///   传 `nil` 时退回真实用户主目录（沙盒里不能用 `homeDirectoryForCurrentUser`，见 `RealHome`）。
     @discardableResult
-    func chooseFolder() -> URL? {
-        NSApp.activate(ignoringOtherApps: true)
+    func chooseFolder(suggestedDirectory: URL? = nil) -> URL? {
+        NSApp.activate()
 
         let panel = NSOpenPanel()
         panel.title = "授权 FinderTools 使用文件夹"
         panel.message = "只会授权你这次选择的文件夹。之后可以继续添加桌面、下载、文稿等其他位置。"
         panel.prompt = "添加授权"
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+        panel.directoryURL = suggestedDirectory ?? RealHome.url
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
@@ -32,22 +46,36 @@ final class FolderAccessManager {
         guard panel.runModal() == .OK, let folderURL = panel.url else { return nil }
 
         do {
-            let data = try folderURL.bookmarkData(
+            let bookmarkData = try folderURL.bookmarkData(
                 options: .withSecurityScope,
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
 
             let normalizedURL = folderURL.standardizedFileURL
-            let existingBookmarks = resolveBookmarks()
-            let alreadyAuthorized = existingBookmarks.contains {
-                $0.url.standardizedFileURL.path == normalizedURL.path
+
+            // 基于完整记录（含暂时不可用的记录）判断重复，而不是“解析成功的书签”。
+            // D-09：用统一的大小写/符号链接规则比较，避免同一文件夹因大小写差异重复授权。
+            var records = store.storedRecords()
+            let alreadyAuthorized = records.contains { record in
+                if PathContainment.areEquivalent(URL(fileURLWithPath: record.lastKnownPath), normalizedURL) {
+                    return true
+                }
+                guard let resolvedPath = store.resolvedPath(of: record.bookmarkData) else { return false }
+                return PathContainment.areEquivalent(URL(fileURLWithPath: resolvedPath), normalizedURL)
             }
 
             if !alreadyAuthorized {
-                let bookmarkData = existingBookmarks.map(\.data) + [data]
-                UserDefaults.standard.set(bookmarkData, forKey: bookmarksKey)
+                records.append(StoredFolderAuthorization(
+                    id: UUID(),
+                    bookmarkData: bookmarkData,
+                    lastKnownPath: normalizedURL.path
+                ))
+                store.persist(records)
+                // C-05：新增授权后把新的目录监听范围广播给扩展。
+                FinderMenuPreferences.notifyExtension()
             }
+
             logger.notice("Authorized folder: \(normalizedURL.path, privacy: .public)")
             return normalizedURL
         } catch {
@@ -56,36 +84,18 @@ final class FolderAccessManager {
         }
     }
 
-    func removeAuthorization(for folderURL: URL) {
-        let pathToRemove = folderURL.standardizedFileURL.path
-        let remainingBookmarks = resolveBookmarks()
-            .filter { $0.url.standardizedFileURL.path != pathToRemove }
-            .map(\.data)
-
-        UserDefaults.standard.set(remainingBookmarks, forKey: bookmarksKey)
-        logger.notice("Removed folder authorization: \(pathToRemove, privacy: .public)")
+    /// 按持久化记录移除，不依赖“解析出来的 URL”，所以不可用的文件夹也能移除。
+    func removeAuthorization(for folder: AuthorizedFolder) {
+        var records = store.storedRecords()
+        records.removeAll { $0.id == folder.id }
+        store.persist(records)
+        // C-05：移除授权后同步缩小扩展的目录监听范围。
+        FinderMenuPreferences.notifyExtension()
+        logger.notice("Removed folder authorization: \(folder.pathDescription, privacy: .public)")
     }
 
     func beginAccess(to targetURLs: [URL]) -> FolderAccessToken? {
-        guard !targetURLs.isEmpty else { return nil }
-
-        let authorizedFolders = resolveBookmarks().map(\.url)
-        var foldersToAccess: [URL] = []
-
-        for targetURL in targetURLs {
-            guard let matchingFolder = authorizedFolders
-                .filter({ targetURL.isInside($0) })
-                .max(by: { $0.standardizedFileURL.path.count < $1.standardizedFileURL.path.count })
-            else {
-                return nil
-            }
-
-            if !foldersToAccess.contains(where: {
-                $0.standardizedFileURL.path == matchingFolder.standardizedFileURL.path
-            }) {
-                foldersToAccess.append(matchingFolder)
-            }
-        }
+        guard !targetURLs.isEmpty, let foldersToAccess = matchingFolders(for: targetURLs) else { return nil }
 
         var accessedFolders: [URL] = []
         for folderURL in foldersToAccess {
@@ -100,60 +110,101 @@ final class FolderAccessManager {
         return FolderAccessToken(folderURLs: accessedFolders)
     }
 
-    private func storedBookmarkData() -> [Data] {
-        if let bookmarks = UserDefaults.standard.array(forKey: bookmarksKey) as? [Data] {
-            return bookmarks
-        }
-
-        guard let legacyBookmark = UserDefaults.standard.data(forKey: legacyBookmarkKey) else {
-            return []
-        }
-
-        UserDefaults.standard.set([legacyBookmark], forKey: bookmarksKey)
-        UserDefaults.standard.removeObject(forKey: legacyBookmarkKey)
-        return [legacyBookmark]
+    /// 只读：判断目标是否已被某个可用的授权文件夹覆盖。
+    /// 用于授权后确认目标已被覆盖；不会开始访问，也不写存储。
+    func isAuthorized(_ targetURL: URL) -> Bool {
+        matchingFolders(for: [targetURL]) != nil
     }
 
-    private func resolveBookmarks() -> [ResolvedBookmark] {
-        let storedData = storedBookmarkData()
-        var resolvedBookmarks: [ResolvedBookmark] = []
-        var seenPaths = Set<String>()
+    /// 只读：为每个目标找出覆盖它的最深层授权文件夹，并跳过不可用记录
+    /// （例如外置硬盘没插时不可能开始访问）。
+    private func matchingFolders(for targetURLs: [URL]) -> [URL]? {
+        let accessibleFolders = store.resolvedRecords()
+            .filter(\.isAvailable)
+            .compactMap(\.url)
 
-        for data in storedData {
-            do {
-                var isStale = false
-                let resolvedURL = try URL(
-                    resolvingBookmarkData: data,
-                    options: .withSecurityScope,
-                    relativeTo: nil,
-                    bookmarkDataIsStale: &isStale
-                )
+        var folders: [URL] = []
 
-                let normalizedURL = resolvedURL.standardizedFileURL
-                guard seenPaths.insert(normalizedURL.path).inserted else { continue }
+        for targetURL in targetURLs {
+            guard let matchingFolder = accessibleFolders
+                .filter({ PathContainment.isInside(targetURL, folder: $0) })
+                .max(by: {
+                    PathContainment.canonicalPath($0).count < PathContainment.canonicalPath($1).count
+                })
+            else {
+                return nil
+            }
 
-                let currentData = if isStale {
-                    try normalizedURL.bookmarkData(
-                        options: .withSecurityScope,
-                        includingResourceValuesForKeys: nil,
-                        relativeTo: nil
-                    )
-                } else {
-                    data
-                }
-
-                resolvedBookmarks.append(ResolvedBookmark(data: currentData, url: normalizedURL))
-            } catch {
-                logger.error("Could not restore a folder authorization: \(error.localizedDescription, privacy: .public)")
+            if !folders.contains(where: {
+                PathContainment.areEquivalent($0, matchingFolder)
+            }) {
+                folders.append(matchingFolder)
             }
         }
 
-        let normalizedData = resolvedBookmarks.map(\.data)
-        if normalizedData != storedData {
-            UserDefaults.standard.set(normalizedData, forKey: bookmarksKey)
+        return folders
+    }
+
+    /// 迁移旧格式并重建过期书签。**这是唯一会写 `UserDefaults` 的公开方法。**
+    ///
+    /// 调用时机：`PermissionView` 出现（`.task`）、点“刷新状态”、添加或移除授权之后。
+    /// 读取方法（`authorizedFolders`、`beginAccess`）都不会调用它。
+    ///
+    /// - 只在新键不存在时迁移一次；新键一旦存在就绝不回头读旧键，
+    ///   否则用户已移除的文件夹会被旧数据迁回来。
+    /// - 解析失败的记录原样保留；只有成功得到新书签数据（或成功解析出路径）时才写回。
+    func refreshAuthorizations() {
+        let pathsBeforeRefresh = authorizedFolderPaths
+        var records = store.storedRecords()
+        var changed = store.needsMigration
+
+        for index in records.indices {
+            guard let resolution = store.resolve(records[index].bookmarkData) else {
+                // 暂时解析失败（外置硬盘未挂载、文件夹被改名等）：原样保留，不自作删除。
+                logger.notice("A saved folder authorization is currently unavailable: \(records[index].lastKnownPath, privacy: .public)")
+                continue
+            }
+
+            let normalizedURL = resolution.url
+
+            if records[index].lastKnownPath != normalizedURL.path {
+                records[index].lastKnownPath = normalizedURL.path
+                changed = true
+            }
+
+            guard resolution.isStale else { continue }
+
+            // 重建过期书签前先取得安全作用域访问权限，重建后（即使失败）再释放。
+            let didStartAccess = normalizedURL.startAccessingSecurityScopedResource()
+            defer {
+                if didStartAccess {
+                    normalizedURL.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            do {
+                let refreshedData = try normalizedURL.bookmarkData(
+                    options: .withSecurityScope,
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
+                records[index].bookmarkData = refreshedData
+                changed = true
+                logger.notice("Rebuilt a stale folder authorization: \(normalizedURL.path, privacy: .public)")
+            } catch {
+                // 重建失败：保留原来的书签数据，绝不删除。
+                logger.error("Could not rebuild a stale folder authorization, keeping stored data: \(error.localizedDescription, privacy: .public)")
+            }
         }
 
-        return resolvedBookmarks
+        if changed {
+            store.persist(records)
+        }
+
+        // C-05：旧版数据迁移、书签重建或路径变化后，扩展的监听范围可能也变了。
+        if authorizedFolderPaths != pathsBeforeRefresh {
+            FinderMenuPreferences.notifyExtension()
+        }
     }
 }
 
@@ -166,18 +217,5 @@ final class FolderAccessToken: @unchecked Sendable {
 
     deinit {
         folderURLs.reversed().forEach { $0.stopAccessingSecurityScopedResource() }
-    }
-}
-
-private struct ResolvedBookmark {
-    let data: Data
-    let url: URL
-}
-
-private extension URL {
-    func isInside(_ folderURL: URL) -> Bool {
-        let folderPath = folderURL.standardizedFileURL.path
-        let targetPath = standardizedFileURL.path
-        return targetPath == folderPath || targetPath.hasPrefix(folderPath.hasSuffix("/") ? folderPath : folderPath + "/")
     }
 }

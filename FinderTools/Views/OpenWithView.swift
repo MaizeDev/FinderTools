@@ -1,15 +1,12 @@
 import SwiftUI
 
 struct OpenWithView: View {
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var applications: [ApplicationOption] = []
+    @Environment(ApplicationCatalog.self) private var catalog
     @State private var searchText = ""
-    @State private var isRefreshing = false
-    @State private var lastRefreshDate: Date?
 
-    private var filteredApplications: [ApplicationOption] {
-        guard !searchText.isEmpty else { return applications }
-        return applications.filter {
+    private var filteredApplications: [ApplicationMenuOption] {
+        guard !searchText.isEmpty else { return catalog.applications }
+        return catalog.applications.filter {
             $0.name.localizedStandardContains(searchText)
                 || $0.path.localizedStandardContains(searchText)
         }
@@ -27,22 +24,22 @@ struct OpenWithView: View {
                     Spacer()
 
                     Button {
-                        refreshApplications()
+                        catalog.refresh()
                     } label: {
                         Label("刷新", systemImage: "arrow.clockwise")
                     }
-                    .disabled(isRefreshing)
+                    .disabled(catalog.isRefreshing)
                 }
 
                 HStack(spacing: 10) {
                     TextField("搜索软件", text: $searchText)
                         .textFieldStyle(.roundedBorder)
 
-                    if isRefreshing {
+                    if catalog.isRefreshing {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Text("已找到 \(applications.count) 个")
+                        Text("已找到 \(catalog.applications.count) 个")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -108,28 +105,12 @@ struct OpenWithView: View {
                 )
             }
         }
-        .task {
-            applications = FinderMenuPreferences.installedApplications
-            lastRefreshDate = FinderMenuPreferences.applicationCatalogRefreshDate
-
-            guard applications.isEmpty
-                    || lastRefreshDate.map({ Date().timeIntervalSince($0) >= 300 }) != false else {
-                return
-            }
-            refreshApplications()
-        }
-        .onChange(of: scenePhase) {
-            guard scenePhase == .active,
-                  let lastRefreshDate,
-                  Date().timeIntervalSince(lastRefreshDate) >= 300 else { return }
-            refreshApplications()
-        }
     }
 
-    private func applicationRow(_ application: ApplicationOption) -> some View {
+    private func applicationRow(_ application: ApplicationMenuOption) -> some View {
         SettingsRow {
             HStack(spacing: 14) {
-                Image(nsImage: application.icon)
+                Image(nsImage: catalog.icon(for: application))
                     .resizable()
                     .scaledToFit()
                     .frame(width: 28, height: 28)
@@ -155,22 +136,6 @@ struct OpenWithView: View {
                 ),
                 defaultEnabled: application.isEnabledByDefault
             )
-        }
-    }
-
-    private func refreshApplications() {
-        guard !isRefreshing else { return }
-        isRefreshing = true
-
-        Task {
-            let refreshedApplications = await Task.detached(priority: .userInitiated) {
-                AppDiscovery.allApplications()
-            }.value
-
-            applications = refreshedApplications
-            lastRefreshDate = Date()
-            isRefreshing = false
-            FinderMenuPreferences.updateApplications(refreshedApplications)
         }
     }
 }
