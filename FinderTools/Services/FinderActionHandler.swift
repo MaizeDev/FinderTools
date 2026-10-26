@@ -36,6 +36,15 @@ final class FinderActionHandler {
             let validator = currentValidator()
             try validator.validateParameters(command)
 
+            // 第 19 步：系统敏感位置不请求授权，只给一次简短提示并结束。
+            guard AuthorizationLocationPolicy.areTargetsSupported(command.targetURLs) else {
+                logger.notice(
+                    "Ignored a Finder action in an unsupported location: \(commandURL.absoluteString, privacy: .public)"
+                )
+                ActionAlerts.showUnsupportedLocation(for: command.targetURLs)
+                return
+            }
+
             switch command.action {
             case .create(let directoryURL, let fileExtension):
                 guard let accessToken = requestAccessIfNeeded(

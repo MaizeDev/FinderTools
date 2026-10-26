@@ -7,8 +7,8 @@
         -D app=<FinderTools.app 路径> \
         -D background=<background.tiff 路径> \
         -D guide=<安装说明文本路径> \
-        -D version=1.1.1 \
-        "FinderTools 1.1.1" dist/FinderTools-1.1.1.dmg
+        -D version=1.1.2 \
+        "FinderTools 1.1.2" dist/FinderTools-1.1.2.dmg
 
 dmgbuild 是纯 Python 工具（不依赖 Finder 自动化），直接写入镜像内的
 .DS_Store，因此窗口版式可在一台机器上生成、在别的机器上得到相同结果。
@@ -30,7 +30,7 @@ def _require(name):
 app = _require("app")
 background = _require("background")
 guide = _require("guide")
-version = defines.get("version", "1.1.1")  # noqa: F821
+version = defines.get("version", "1.1.2")  # noqa: F821
 
 APP_NAME = "FinderTools.app"
 GUIDE_NAME = "安装说明 Install Guide.txt"

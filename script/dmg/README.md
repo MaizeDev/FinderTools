@@ -6,7 +6,7 @@
 右下角小签名为 GitHub 名称 `MaizeDev`，字体 Snell Roundhand 14pt（字距 +0.5、白色 82%）。
 如需更换：改 `generate_background.swift` 顶部的 `SIGNATURE_TEXT` / `SIGNATURE_FONT` /
 `SIGNATURE_SIZE` / `SIGNATURE_TRACKING`，再执行
-`./script/package_release.sh 1.1.1 --regenerate-background`。
+`./script/package_release.sh 1.1.2 --regenerate-background`。
 
 ## 文件
 
@@ -31,7 +31,7 @@ tiffutil -cathidpicheck "script/dmg/background.png" "script/dmg/background@2x.pn
 tiffutil -info "script/dmg/background.tiff"   # 应看到 658x434@72dpi 与 1316x868@144dpi 两档
 ```
 
-也可以直接让打包脚本重绘：`./script/package_release.sh 1.1.1 --regenerate-background`。
+也可以直接让打包脚本重绘：`./script/package_release.sh 1.1.2 --regenerate-background`。
 背景只用代码绘制，不联网、不依赖第三方图形库。
 
 ## 版式参数（settings.py）
@@ -54,7 +54,7 @@ tiffutil -info "script/dmg/background.tiff"   # 应看到 658x434@72dpi 与 1316
 
 ```bash
 ./script/dmg/setup.sh                 # 第一次：联网安装 dmgbuild 到 .build/dmg-venv
-./script/package_release.sh 1.1.1     # 构建 Release + 生成 DMG + verify + SHA-256
+./script/package_release.sh 1.1.2     # 构建 Release + 生成 DMG + verify + SHA-256
 ```
 
 `package_release.sh` 的输出是 `dist/FinderTools-<版本>.dmg`，并会打印大小与

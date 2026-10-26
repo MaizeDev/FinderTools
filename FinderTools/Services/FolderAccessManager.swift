@@ -16,27 +16,36 @@ final class FolderAccessManager {
         store.resolvedRecords()
     }
 
-    /// C-05：提供给扩展的目录监听范围。只读，不写存储。
+    /// 已授权文件夹的路径列表（只读，不写存储）。
     ///
-    /// 有书签能解析时用解析出的真实路径；目录暂时不可用（外置硬盘未挂载、被改名）时
-    /// 退回最后已知路径，这样硬盘插回后不需要重新授权。排序后再发，避免每次广播因
-    /// 顺序不同被误判成变化。
+    /// 第 19 步起扩展不再用它限制菜单出现范围；主 App 仍随设置段广播这份路径，
+    /// 只为兼容升级期间还在运行的旧扩展进程与回滚版本。目录暂时不可用（外置硬盘
+    /// 未挂载、被改名）时退回最后已知路径，这样硬盘插回后不需要重新授权；
+    /// 排序后再发，避免每次广播因顺序不同被误判成变化。
     var authorizedFolderPaths: [String] {
         store.resolvedRecords()
             .compactMap { $0.url?.path(percentEncoded: false) }
             .sorted()
     }
 
-    /// - Parameter suggestedDirectory: 授权面板默认定位到的目录，通常是用户要操作的目标目录。
-    ///   传 `nil` 时退回真实用户主目录（沙盒里不能用 `homeDirectoryForCurrentUser`，见 `RealHome`）。
+    /// - Parameters:
+    ///   - suggestedDirectory: 授权面板默认定位到的目录，通常是用户要操作的目标目录。
+    ///     传 `nil` 时退回真实用户主目录（沙盒里不能用 `homeDirectoryForCurrentUser`，见 `RealHome`）。
+    ///   - title / message / prompt: 第 19 步允许“用到时再授权”的流程复用同一个面板，
+    ///     换成“需要文件夹权限 / 列出目标路径 / 授权”的文案。
     @discardableResult
-    func chooseFolder(suggestedDirectory: URL? = nil) -> URL? {
+    func chooseFolder(
+        suggestedDirectory: URL? = nil,
+        title: String = "授权 FinderTools 使用文件夹",
+        message: String = "只会授权你这次选择的文件夹。之后可以继续添加桌面、下载、文稿等其他位置。",
+        prompt: String = "添加授权"
+    ) -> URL? {
         NSApp.activate()
 
         let panel = NSOpenPanel()
-        panel.title = "授权 FinderTools 使用文件夹"
-        panel.message = "只会授权你这次选择的文件夹。之后可以继续添加桌面、下载、文稿等其他位置。"
-        panel.prompt = "添加授权"
+        panel.title = title
+        panel.message = message
+        panel.prompt = prompt
         panel.directoryURL = suggestedDirectory ?? RealHome.url
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -44,6 +53,16 @@ final class FolderAccessManager {
         panel.canCreateDirectories = false
 
         guard panel.runModal() == .OK, let folderURL = panel.url else { return nil }
+
+        // 第 19 步：根目录与根级系统位置不能选作授权文件夹。
+        // 这里只提示一次并结束，不再重新弹面板，避免出现循环。
+        guard AuthorizationLocationPolicy.canAuthorizeFolder(folderURL) else {
+            logger.notice(
+                "Rejected an authorization folder that cannot be authorized: \(folderURL.path, privacy: .public)"
+            )
+            ActionAlerts.showUnsupportedAuthorizationFolder(folderURL)
+            return nil
+        }
 
         do {
             let bookmarkData = try folderURL.bookmarkData(
@@ -72,7 +91,8 @@ final class FolderAccessManager {
                     lastKnownPath: normalizedURL.path
                 ))
                 store.persist(records)
-                // C-05：新增授权后把新的目录监听范围广播给扩展。
+                // 第 19 步：扩展不再用授权路径限制菜单；这里仍广播一次设置段，
+                // 让升级期间还在运行的旧扩展进程和回滚版本继续收到最新的授权变化。
                 FinderMenuPreferences.notifyExtension()
             }
 
@@ -89,7 +109,7 @@ final class FolderAccessManager {
         var records = store.storedRecords()
         records.removeAll { $0.id == folder.id }
         store.persist(records)
-        // C-05：移除授权后同步缩小扩展的目录监听范围。
+        // 第 19 步：扩展不再用授权路径限制菜单；广播设置段只为兼容旧扩展进程与回滚版本。
         FinderMenuPreferences.notifyExtension()
         logger.notice("Removed folder authorization: \(folder.pathDescription, privacy: .public)")
     }
@@ -201,7 +221,8 @@ final class FolderAccessManager {
             store.persist(records)
         }
 
-        // C-05：旧版数据迁移、书签重建或路径变化后，扩展的监听范围可能也变了。
+        // 第 19 步：扩展不再用授权路径限制菜单；授权变化时仍广播设置段，
+        // 让旧扩展进程与回滚版本继续收到最新的授权列表。
         if authorizedFolderPaths != pathsBeforeRefresh {
             FinderMenuPreferences.notifyExtension()
         }

@@ -108,8 +108,10 @@ final class MenuConfigurationSplitTests: XCTestCase {
         XCTAssertNil(decoded.authorizedFolderPaths)
     }
 
-    /// 新版主 App 没有任何授权文件夹时必须显式发送空数组（区别于旧数据的 nil），
-    /// 扩展据此关闭所有位置的菜单。
+    /// 新版主 App 没有任何授权文件夹时仍然显式发送空数组（区别于旧数据的 nil）。
+    ///
+    /// 第 19 步起扩展不再用这个字段限制菜单出现范围，但字段仍随协议保留：
+    /// 编码形态与旧版本一致，升级/回滚时才不会丢配置。
     func testEmptyAuthorizedFolderListIsEncodedExplicitly() throws {
         let data = try JSONEncoder().encode(fullConfiguration(authorizedFolderPaths: []))
         let object = try XCTUnwrap(

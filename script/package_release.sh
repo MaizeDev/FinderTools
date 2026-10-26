@@ -5,7 +5,7 @@
 # 用法：
 #   ./script/package_release.sh [版本号] [--regenerate-background]
 #
-#   版本号默认 1.1.1。
+#   版本号默认 1.1.2。
 #   --regenerate-background 用 script/dmg/generate_background.swift 重绘背景，
 #   再用 tiffutil 合成多分辨率 TIFF；平时复用已提交的 script/dmg/background.tiff。
 #
@@ -16,7 +16,7 @@
 # 本脚本不联网、不需要开发者证书，也不修改系统设置。
 set -euo pipefail
 
-VERSION="${1:-1.1.1}"
+VERSION="${1:-1.1.2}"
 REGENERATE_BACKGROUND=0
 if [[ "${2:-}" == "--regenerate-background" ]]; then
   REGENERATE_BACKGROUND=1

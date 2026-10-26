@@ -72,7 +72,7 @@ struct PermissionView: View {
 
                 InfoCard(
                     icon: "lock.shield",
-                    text: "FinderTools 的右键菜单只会在列表中的文件夹及其子文件夹里出现，也只能在这些位置执行操作。移除某个文件夹后，该位置的菜单也会消失；没有授权文件夹时访达里不会出现 FinderTools 菜单。你可以分别添加桌面、下载、文稿、影片等位置，不需要授权整个个人目录。"
+                    text: "右键菜单始终显示在访达中。第一次在某个位置使用新建、打开方式或终端时，FinderTools 会请求该文件夹的权限；只有已授权的文件夹及其子文件夹里的操作会被执行。你也可以在这里提前添加或移除常用位置，不需要授权整个个人目录。"
                 )
 
                 Button("刷新状态") {
@@ -206,7 +206,7 @@ private struct EmptyFolderState: View {
             VStack(spacing: 4) {
                 Text("还没有授权文件夹")
                     .font(.body.weight(.semibold))
-                Text("右键菜单只会出现在已授权的文件夹里。请先添加一个文件夹（例如桌面或下载）；没有授权文件夹时，访达里不会出现 FinderTools 菜单。")
+                Text("右键菜单仍会显示在访达中。第一次在某个位置使用菜单功能时，FinderTools 会请求该文件夹的权限；你也可以现在提前添加常用位置（例如桌面或下载）。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

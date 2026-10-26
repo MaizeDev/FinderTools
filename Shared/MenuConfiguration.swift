@@ -35,14 +35,12 @@ nonisolated struct MenuConfiguration: Codable, Sendable {
     let applications: [String: MenuItemSetting]
     let applicationOptions: [ApplicationMenuOption]?
 
-    /// C-05：已授权文件夹的路径。扩展用它设置 `directoryURLs`，让右键菜单只出现在
-    /// 这些目录及其子目录里。
+    /// 已授权文件夹的路径。
     ///
-    /// 可选是为了向后兼容：
-    /// - 旧版主 App / 升级前缓存里的配置没有这个 JSON 键，解码为 `nil`，
-    ///   表示“还不知道授权文件夹”，扩展暂时沿用旧行为（监听 `/`）；
-    /// - 新版主 App 即使一个文件夹都没授权，也会明确发送空数组 `[]`，
-    ///   扩展据此把 `directoryURLs` 设为空集合，任何位置都不出现菜单。
+    /// 第 19 步起扩展不再使用这个字段：右键菜单始终显示，主 App 在真正执行操作时才
+    /// 请求文件夹授权。字段仍保留是为了解码旧缓存、升级与回滚兼容，JSON 键名不能改。
+    /// 新版主 App 仍然会发送它，让升级期间还在运行的旧扩展进程继续按旧语义工作；
+    /// 新扩展会忽略它（见 `FinderSync.monitorRootDirectory()`）。
     let authorizedFolderPaths: [String]?
 
     init(
@@ -83,7 +81,7 @@ nonisolated struct MenuConfiguration: Codable, Sendable {
 
     /// C-06：设置段（不含应用目录/图标）。编码后的 JSON 键仍是 `newFiles` /
     /// `applications`，与旧版整份配置的对应字段完全一致。
-    /// C-05：授权文件夹路径属于设置段，必须保留，否则扩展收不到监听范围。
+    /// 第 19 步：授权文件夹路径只是随设置段原样保留（编码/解码兼容），扩展不再使用。
     func removingApplicationOptions() -> MenuConfiguration {
         MenuConfiguration(
             newFiles: newFiles,
@@ -108,6 +106,12 @@ nonisolated struct MenuConfiguration: Codable, Sendable {
         applications: [:],
         applicationOptions: nil
     )
+}
+
+/// 主 App 的 Bundle Identifier。扩展用它在 `menu(for:)` 里判断主 App 是否在运行；
+/// 必须与 FinderTools target 的 `PRODUCT_BUNDLE_IDENTIFIER` 保持一致。
+nonisolated enum FinderToolsBundleIdentifier {
+    static let mainApp = "com.wheat.FinderTools"
 }
 
 /// 主 App 与扩展之间的通知名（C-06）。两边共用一份，避免字符串在两处维护。

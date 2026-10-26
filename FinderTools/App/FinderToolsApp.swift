@@ -6,9 +6,18 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let logger = Logger(subsystem: "com.wheat.FinderTools", category: "AppDelegate")
     private var receivedFinderActionDuringLaunch = false
+    private let dockIconVisibilityController = DockIconVisibilityController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         ApplicationCatalog.shared.start()
+        dockIconVisibilityController.start()
+
+        // 第 20 步：登录项启动时只留在后台，不显示主窗口、不显示 Dock 图标。
+        if LoginLaunchDetector.isLoginItemLaunch() {
+            logger.notice("Launched as a login item; keeping the main window hidden")
+            keepLoginLaunchInBackground()
+            return
+        }
 
         // LSUIElement keeps a background launch out of the Dock. A normal user
         // launch has no Finder command, so it becomes a regular foreground app.
@@ -46,6 +55,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         application.setActivationPolicy(.regular)
         application.unhide(nil)
         application.activate()
+    }
+
+    /// 登录项启动：保持 LSUIElement 的 accessory 激活策略，并立即移走 SwiftUI 创建的初始窗口。
+    ///
+    /// 实测（/tmp SwiftUI 探针）：在 `didFinishLaunching` 里对主窗口调用 `orderOut` 后，
+    /// 窗口不会上屏；之后用户从“应用程序/Spotlight”打开时，`applicationShouldHandleReopen`
+    /// 会恢复窗口与 Dock 图标。
+    private func keepLoginLaunchInBackground() {
+        NSApp.setActivationPolicy(.accessory)
+        for window in NSApp.windows where window.canBecomeMain {
+            window.orderOut(nil)
+        }
     }
 }
 

@@ -46,9 +46,7 @@ nonisolated struct CommandSender {
             return
         }
 
-        let mainAppIsRunning = !NSRunningApplication.runningApplications(
-            withBundleIdentifier: "com.wheat.FinderTools"
-        ).isEmpty
+        let mainAppIsRunning = MainAppLiveness.isMainAppRunning()
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = false
         configuration.addsToRecentItems = false

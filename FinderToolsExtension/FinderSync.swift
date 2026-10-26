@@ -13,8 +13,9 @@ final class FinderSync: FIFinderSync {
 
         super.init()
 
-        // C-05：只监听主 App 广播的授权文件夹；缓存里还没有路径字段时沿用旧行为（监听 `/`）。
-        applyDirectoryURLs(from: configurationStore.mergedConfiguration)
+        // 第 19 步：菜单始终显示，不再按授权文件夹收敛监听范围（回到 V1.1.1 之前监听 `/` 的做法）。
+        // 授权改由主 App 在真正执行操作时请求。
+        monitorRootDirectory()
 
         let center = DistributedNotificationCenter.default()
         center.addObserver(
@@ -44,9 +45,7 @@ final class FinderSync: FIFinderSync {
             object: nil,
             userInfo: nil
         )
-        logger.notice(
-            "FinderTools extension started; monitoring \(FIFinderSyncController.default().directoryURLs.count, privacy: .public) authorized folder(s)"
-        )
+        logger.notice("FinderTools extension started; the context menu is available in every folder")
     }
 
     deinit {
@@ -62,6 +61,13 @@ final class FinderSync: FIFinderSync {
             )
         }
         logger.debug("Finder requested menu kind: \(menuKind.rawValue, privacy: .public)")
+
+        // 第 20 步：每次弹出菜单都实时判断主 App 是否在运行；不在运行就返回 nil，
+        // 让 Finder 完全不显示 FinderTools 菜单。检查结果与耗时由该函数写 debug 日志。
+        guard MainAppLiveness.isMainAppRunningForMenu() else {
+            return nil
+        }
+
         switch menuKind {
         case .contextualMenuForContainer:
             return menuBuilder.makeCreateMenu(
@@ -86,7 +92,6 @@ final class FinderSync: FIFinderSync {
         }
 
         configurationStore.updateSettings(from: configuration)
-        applyDirectoryURLs(from: configuration)
         rebuildMenu()
         logger.notice("Updated Finder menu settings")
     }
@@ -113,8 +118,6 @@ final class FinderSync: FIFinderSync {
         }
 
         configurationStore.adoptLegacyConfiguration(configuration, encodedData: data)
-        // 旧协议没有授权文件夹字段（nil），按兼容规则暂时回退到监听 `/`。
-        applyDirectoryURLs(from: configuration)
         rebuildMenu()
         logger.notice("Adopted a full menu configuration from the pre-split protocol")
     }
@@ -123,35 +126,20 @@ final class FinderSync: FIFinderSync {
         menuBuilder = MenuBuilder(configuration: configurationStore.mergedConfiguration)
     }
 
-    // MARK: - 目录监听（C-05）
+    // MARK: - 目录监听（第 19 步）
 
-    /// 按配置里的授权文件夹设置扩展的监听范围。
+    /// 固定监听根目录 `/`：右键菜单在任何位置都显示，授权改由主 App 在真正执行操作时请求。
     ///
-    /// - `authorizedFolderPaths == nil`：旧版配置或升级前的缓存还没有这个字段，
-    ///   暂时沿用旧行为监听 `/`；主 App 升级后第一次广播就会收敛到真实授权列表。
-    /// - `authorizedFolderPaths == []`：新版主 App 明确表示没有任何授权文件夹，
-    ///   按 SDK 文档把 `directoryURLs` 设为空集合，任何位置都不出现菜单。
-    private func applyDirectoryURLs(from configuration: MenuConfiguration) {
-        let desiredURLs: Set<URL>
-        if let folderPaths = configuration.authorizedFolderPaths {
-            desiredURLs = Set(folderPaths.map { URL(fileURLWithPath: $0, isDirectory: true) })
-        } else {
-            desiredURLs = [URL(fileURLWithPath: "/", isDirectory: true)]
-        }
+    /// `MenuConfiguration.authorizedFolderPaths` 仍然保留解码（旧缓存 / 升级 / 回滚兼容），
+    /// 但扩展不再用它设置 `directoryURLs`。原因：V1.1.1 的“菜单只出现在授权文件夹”语义
+    /// 与 README 的“始终显示、用到时再授权”不一致，第 19 步按产品决定回退到旧做法。
+    private func monitorRootDirectory() {
+        let desiredURLs: Set<URL> = [URL(fileURLWithPath: "/", isDirectory: true)]
 
         let controller = FIFinderSyncController.default()
-        if let currentURLs = controller.directoryURLs, currentURLs == desiredURLs {
-            return
-        }
+        guard controller.directoryURLs != desiredURLs else { return }
         controller.directoryURLs = desiredURLs
-
-        if desiredURLs.isEmpty {
-            logger.notice("No authorized folders; the Finder menu stays hidden until a folder is authorized")
-        } else {
-            logger.notice(
-                "Updating Finder directory monitoring: \(desiredURLs.count, privacy: .public) folder(s)"
-            )
-        }
+        logger.notice("Monitoring the root directory so the Finder menu is always available")
     }
 
     private func payloadData(from notification: Notification) -> Data? {

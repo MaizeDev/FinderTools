@@ -17,11 +17,22 @@ FinderTools 安装说明 / Install Guide
 3. 首次使用
    - 打开 FinderTools。
    - 进入“扩展权限”，点击“打开扩展管理”，启用 FinderTools 访达扩展。
-   - 在“已授权的文件夹”中点击“添加文件夹”，添加需要右键菜单的位置，
-     例如桌面、下载、文稿、影片。
-   - 回到访达，在已授权的文件夹（或其子文件夹）中点击右键即可。
+   - 回到访达，只要 FinderTools 在运行，在任意位置点击右键即可看到 FinderTools 菜单。
+   - 第一次在某个位置使用“新建文件”“打开方式”或“在终端中打开”时，
+     FinderTools 会请求该文件夹的权限；选择包含目标的文件夹并点击“授权”，
+     刚才的操作会自动继续完成。
+   - 也可以提前在“已授权的文件夹”里添加常用位置。
+   - /System、/Library、/usr 等系统位置不能作为授权文件夹。
 
-4. 反馈
+4. 右键菜单需要 FinderTools 保持运行
+   Finder 右键菜单由扩展提供，但需要 FinderTools 主 App 在后台保持运行；
+   关闭主窗口不会退出 App。按 ⌘Q 会完全退出，菜单随之消失。
+   想开机后自动可用，请在 FinderTools 的“通用”页开启“登录时自动启动”；
+   也可以在“系统设置 → 通用 → 登录项”里手动添加 FinderTools。
+   本版本没有使用 Apple Developer 证书签名；登录项已在未签名的构建上验收可用
+   （含重启后的登录启动），但系统仍可能拒绝注册，届时设置页会显示原因。
+
+5. 反馈
    遇到问题或有功能建议，请到 GitHub Issues 反馈：
    https://github.com/MaizeDev/FinderTools/issues
 
@@ -46,11 +57,26 @@ English
    - Open FinderTools.
    - Go to "Extension Permissions", click "Open Extension Manager" and enable the
      FinderTools Finder extension.
-   - Under "Authorized Folders", click "Add Folder" and add the locations where you
-     want the context menu, such as Desktop, Downloads, Documents or Movies.
-   - Back in Finder, right-click inside an authorized folder or its subfolders.
+   - Back in Finder, while FinderTools is running, right-click anywhere to see the
+     FinderTools menu.
+   - The first time you use New File, Open With or Open in Terminal in a location,
+     FinderTools asks for that folder's permission. Choose a folder that contains
+     the item and click "Authorize"; the action continues automatically.
+   - You can also add commonly used locations in advance under "Authorized Folders".
+   - System locations such as /System, /Library and /usr cannot be authorized.
 
-4. Feedback
+4. The context menu needs FinderTools to keep running
+   The Finder context menu is provided by the extension, but the FinderTools app
+   must be running in the background; closing the main window does not quit it.
+   Pressing ⌘Q quits completely and the menu disappears.
+   To have the menu available right after a restart, turn on "Launch at Login" on
+   the "General" page, or add FinderTools manually in
+   System Settings → General → Login Items.
+   This build is not signed with an Apple Developer certificate. Launch at login
+   has been verified on the unsigned build, including login start after a restart,
+   but macOS may still refuse to register the login item; the app then shows why.
+
+5. Feedback
    If you encounter a problem or have a feature suggestion, please open an issue at:
    https://github.com/MaizeDev/FinderTools/issues
 

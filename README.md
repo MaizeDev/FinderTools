@@ -6,7 +6,15 @@ If you are looking for a Finder context menu manager, a tool for creating files 
 
 [中文说明](README-zh.md)
 
-[Download FinderTools V1.1.1](https://github.com/MaizeDev/FinderTools/releases)
+[Download FinderTools V1.1.2](https://github.com/MaizeDev/FinderTools/releases)
+
+## What's New in V1.1.2
+
+- Optional: hide the Dock icon after you close the last FinderTools window. The app keeps running in the background, so the context menu and Finder actions keep working; open FinderTools again from Applications or Spotlight and its window and Dock icon come back. This option is off by default, so closing the window keeps the previous behavior.
+- The Finder context menu is always available again, instead of only inside authorized folders. FinderTools asks for a folder's permission the first time you use New File, Open With, or Open in Terminal there, and then continues the action automatically. Canceling the authorization window ends silently, and system locations that cannot be authorized show a short “not supported” message instead of asking for permission.
+- Pressing ⌘Q now quits FinderTools completely and the FinderTools context menu disappears; this also covers a force quit or a crash, because the extension checks whether FinderTools is running every time the menu opens. A new “Quit FinderTools” button on the General settings page gives you a way to quit when the Dock icon is hidden.
+- Optional: launch FinderTools automatically when you log in, using the system Login Items. It starts in the background with no window and no Dock icon, so the context menu is available right after login. This has been verified on an unsigned local build, including login start after a restart. If the login item is off, you need to open FinderTools once after a restart; the main window shows a reminder about this. FinderTools is not signed with an Apple Developer certificate, so if macOS refuses to register the login item, the app shows the reason and a shortcut to Login Items settings.
+- A new “General” page in the sidebar collects these window, Dock, launch, and quit options.
 
 ## What's New in V1.1.1
 
@@ -35,8 +43,10 @@ If you are looking for a Finder context menu manager, a tool for creating files 
 - Manage the Mac “Open With” menu, choose a preferred app, or select another app temporarily.
 - Open the current folder in Terminal.
 - Enable or disable each feature independently, and choose whether it appears in the main menu or a submenu.
-- Control access with an authorized-folder list, including Desktop, Downloads, Documents, and Movies.
+- Control access with an authorized-folder list: while FinderTools is running, the Finder context menu is always available, and FinderTools asks for a folder's permission the first time you use an action there.
 - Add or remove authorized folders at any time without granting access to your entire home directory.
+- Optionally hide the Dock icon after the last window closes; FinderTools keeps running in the background so the menu keeps working.
+- Optionally launch FinderTools at login in the background, and quit it from the General settings page.
 
 ## System Requirements
 
@@ -50,28 +60,29 @@ If you are looking for a Finder context menu manager, a tool for creating files 
 
 ## Download and Installation
 
-1. Go to [Releases](https://github.com/MaizeDev/FinderTools/releases) and download `FinderTools-1.1.1.dmg`.
+1. Go to [Releases](https://github.com/MaizeDev/FinderTools/releases) and download `FinderTools-1.1.2.dmg`.
 2. Open the DMG. Its window shows `FinderTools`, an `Applications` shortcut, and a bilingual `安装说明 Install Guide.txt`; drag `FinderTools` onto `Applications`.
-3. Open FinderTools from Applications once.
+3. Open FinderTools from Applications once and keep it running in the background; closing its window does not quit it.
 4. If macOS blocks the app, go to “System Settings → Privacy & Security,” click “Open Anyway” near the bottom, then click “Open” in the confirmation dialog.
 
-> V1.1.1 is not signed with an Apple Developer certificate or notarized, so macOS will show an “unidentified developer” warning the first time you open it. The source code is fully public in this repository.
+> V1.1.2 is not signed with an Apple Developer certificate or notarized, so macOS will show an “unidentified developer” warning the first time you open it. The source code is fully public in this repository.
 
 ## First Use
 
 1. Open FinderTools and go to “Extension Permissions.”
 2. Click “Open Extension Manager” and enable the FinderTools Finder extension.
-3. Under “Authorized Folders,” click “Add Folder.”
-4. Add the locations where you want to use the context menu, such as Desktop, Downloads, Documents, or Movies.
-5. Return to Finder and right-click inside an authorized folder.
+3. Return to Finder and right-click anywhere: the FinderTools context menu appears while FinderTools is running. The menu is provided by the Finder extension, but it needs the FinderTools app to stay running in the background; closing the main window does not quit the app.
+4. The first time you use an action in a folder, FinderTools opens an authorization window. Choose a folder that contains the item, click “Authorize,” and the action continues automatically.
+5. You can also add or remove folders in advance under “Authorized Folders.”
+6. To have the context menu available right after a restart, turn on “Launch at Login” on the “General” page, or add FinderTools manually in System Settings → General → Login Items. The same page also offers the option to hide the Dock icon after the last window closes.
 
-FinderTools' context menu appears only inside authorized folders and their subfolders. If you have not added any folder yet, the menu does not appear anywhere in Finder.
+FinderTools can execute actions only inside authorized folders and their subfolders. The context menu itself stays visible everywhere while FinderTools is running, and asking for permission when needed is the default flow.
 
-After adding or removing a folder, if the context menu does not appear immediately, reopen a Finder window or click “Refresh Status” in FinderTools.
+If the menu or an authorization does not update immediately, reopen a Finder window or click “Refresh Status” in FinderTools.
 
 ## Folder Permissions and Privacy
 
-FinderTools uses macOS folder permissions to save access. The context menu appears only inside authorized folders and their subfolders, and FinderTools can operate only there. After you remove a folder, its menu disappears and FinderTools can no longer operate there.
+FinderTools uses macOS folder permissions to save access. The Finder context menu is provided by the extension and requires the FinderTools app to be running; closing the window does not quit it. While FinderTools is running, the menu is available in Finder, but FinderTools asks for a folder's permission the first time you use an action there, and it can operate only in authorized folders and their subfolders. System locations such as `/System`, `/Library`, `/usr`, `/bin`, `/sbin` and `/private`, and the root-level `/`, `/Applications`, `/Volumes` and `/Users`, cannot be authorized. After you remove a folder authorization, FinderTools can no longer operate there and will ask again the next time you use the menu in that location.
 
 FinderTools does not upload file contents and does not include accounts, advertising, or data collection.
 

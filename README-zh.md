@@ -6,7 +6,15 @@ FinderTools 是一款简单、轻量的 **Mac 鼠标右键管理工具**，帮�
 
 [Download the English README](README.md)
 
-[下载 FinderTools V1.1.1](https://github.com/MaizeDev/FinderTools/releases)
+[下载 FinderTools V1.1.2](https://github.com/MaizeDev/FinderTools/releases)
+
+## V1.1.2 更新内容
+
+- 可选：关闭最后一个主窗口后隐藏 Dock 图标。FinderTools 会继续在后台运行，右键菜单与 Finder 动作照常可用；再从“应用程序”或 Spotlight 打开 FinderTools，窗口与 Dock 图标会恢复。该选项默认关闭，关闭窗口时保持原来的行为。
+- 右键菜单改为始终显示，不再只在已授权文件夹里出现。第一次在某个位置使用“新建文件”“打开方式”或“在终端中打开”时，FinderTools 才会请求该文件夹的权限，授权后自动继续刚才的操作；取消授权窗口会静默结束。`/System`、`/Library`、`/usr`、`/bin`、`/sbin`、`/private` 等系统位置，以及根级别的 `/`、`/Applications`、`/Volumes`、`/Users` 无法授权，会给出一次“此位置不支持”的提示，而不是请求权限。
+- 按 ⌘Q 会完全退出 FinderTools，右键菜单随即消失；强制退出或崩溃时同样不会残留菜单，因为扩展每次弹出菜单前都会确认 FinderTools 是否在运行。“通用”页新增“退出 FinderTools”按钮，隐藏 Dock 图标时也能退出。
+- 可选：“登录时自动启动 FinderTools”，使用系统登录项。登录后在后台启动，不弹主窗口、不显示 Dock 图标，右键菜单随即可用。该功能已在未签名的本地构建上验收可用，包括重启后的登录启动。关闭登录项后，重启电脑需要手动打开一次 FinderTools；未开启时主窗口顶部会显示提示。FinderTools 没有 Apple Developer 证书签名，如果 macOS 拒绝注册登录项，设置页会显示原因和“打开登录项设置”入口。
+- 侧边栏新增“通用”页，集中放置窗口、Dock、启动与退出设置。
 
 ## V1.1.1 更新内容
 
@@ -35,8 +43,10 @@ FinderTools 是一款简单、轻量的 **Mac 鼠标右键管理工具**，帮�
 - 管理 Mac“打开方式”菜单，选择常用软件打开文件，也可以临时选择其他软件。
 - 在当前文件夹中打开“终端”。
 - 每项功能都可以单独开启或关闭，并选择显示在一级或二级菜单。
-- 使用授权文件夹列表控制访问范围，可以分别授权桌面、下载、文稿、影片等目录。
+- 右键菜单始终显示在访达中（需 FinderTools 在后台运行）；第一次在某个位置使用菜单功能时，FinderTools 会请求该文件夹的权限。
 - 随时添加或移除已授权的文件夹，不需要开放整个个人目录。
+- 可选：关闭最后一个窗口后隐藏 Dock 图标，App 继续在后台运行，右键菜单照常可用。
+- 可选：登录时自动启动，并可在“通用”页退出 FinderTools。
 
 ## 系统要求
 
@@ -50,28 +60,29 @@ FinderTools 是一款简单、轻量的 **Mac 鼠标右键管理工具**，帮�
 
 ## 下载与安装
 
-1. 前往 [Releases](https://github.com/MaizeDev/FinderTools/releases) 下载 `FinderTools-1.1.1.dmg`。
+1. 前往 [Releases](https://github.com/MaizeDev/FinderTools/releases) 下载 `FinderTools-1.1.2.dmg`。
 2. 打开 DMG，窗口里会显示 `FinderTools`、`Applications` 替身和一份中英双语的 `安装说明 Install Guide.txt`；把 `FinderTools` 拖到 `Applications` 上。
-3. 双击“应用程序”中的 FinderTools，尝试启动一次。
+3. 双击“应用程序”中的 FinderTools，启动一次并让它在后台保持运行；关闭主窗口不会退出 App。
 4. 如果 macOS 阻止打开，请前往“系统设置 → 隐私与安全性”，在页面下方点击“仍要打开”，然后在确认窗口中点击“打开”。
 
-> 当前 V1.1.1 尚未使用 Apple Developer 证书签名和公证，因此第一次打开时会出现无法验证开发者的安全提示。软件源代码完全公开，可以在本仓库查看。
+> 当前 V1.1.2 尚未使用 Apple Developer 证书签名和公证，因此第一次打开时会出现无法验证开发者的安全提示。软件源代码完全公开，可以在本仓库查看。
 
 ## 首次使用
 
 1. 打开 FinderTools，进入“扩展权限”。
 2. 点击“打开扩展管理”，启用 FinderTools 访达扩展。
-3. 在“已授权的文件夹”中点击“添加文件夹”。
-4. 分别添加需要使用右键功能的位置，例如桌面、下载、文稿或影片。
-5. 回到访达，在授权文件夹中点击右键即可使用 FinderTools。
+3. 回到访达，在任意位置点击右键：只要 FinderTools 正在运行，就能看到 FinderTools 菜单。菜单由访达扩展提供，但需要 FinderTools 主 App 在后台保持运行；关闭主窗口不会退出 App。
+4. 第一次在某个文件夹使用菜单功能时，FinderTools 会弹出授权窗口；选择包含该项目的文件夹并点击“授权”，刚才的操作会自动继续完成。
+5. 也可以在“已授权的文件夹”中提前添加或移除常用位置。
+6. 想重启电脑后右键菜单自动可用：在“通用”页开启“登录时自动启动 FinderTools”，或在“系统设置 → 通用 → 登录项”里手动添加 FinderTools。同一页还可以选择关闭最后一个窗口后隐藏 Dock 图标。
 
-FinderTools 的右键菜单只会出现在已授权的文件夹及其子文件夹里。如果还没有添加任何文件夹，访达里不会出现该菜单。
+FinderTools 只能在已授权文件夹及其子文件夹中执行操作；只要 FinderTools 正在运行，右键菜单本身始终显示，“用到时再授权”是默认流程。
 
-添加或移除文件夹后，如果右键菜单没有立即出现，可以重新打开一个访达窗口，或在 FinderTools 中点击“刷新状态”。
+如果菜单或授权没有立即更新，可以重新打开一个访达窗口，或在 FinderTools 中点击“刷新状态”。
 
 ## 文件夹权限与隐私
 
-FinderTools 使用 macOS 提供的文件夹授权机制保存权限。右键菜单只会在授权列表中的文件夹及其子文件夹里出现，也只能在这些位置执行操作。移除某个文件夹后，该位置的菜单会消失，FinderTools 也无法继续操作该位置。
+FinderTools 使用 macOS 提供的文件夹授权机制保存权限。右键菜单由访达扩展提供，需要 FinderTools 主 App 保持运行；关闭窗口不会退出 App。只要 FinderTools 正在运行，菜单就始终显示在访达中，但第一次在某个位置使用菜单功能时会请求该文件夹的权限；FinderTools 只能在已授权的文件夹及其子文件夹中执行操作。`/System`、`/Library`、`/usr`、`/bin`、`/sbin`、`/private` 等系统位置，以及根级别的 `/`、`/Applications`、`/Volumes`、`/Users` 不能作为授权文件夹。移除某个文件夹的授权后，FinderTools 无法再操作该位置，下次使用时会重新请求权限。
 
 FinderTools 不会上传文件内容，也不包含账号、广告或数据收集功能。
 

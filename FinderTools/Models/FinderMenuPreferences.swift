@@ -101,8 +101,8 @@ enum FinderMenuPreferences {
             newFiles: settings(group: "newFile", defaults: newFileDefaults),
             applications: applicationSettings,
             applicationOptions: nil,
-            // C-05：扩展靠这份路径设置 `directoryURLs`。没授权文件夹时发送空数组，
-            // 扩展据此关闭所有位置的菜单（与旧数据的 `nil` 区分开）。
+            // 第 19 步：扩展不再用授权路径限制菜单；仍随设置段发送，
+            // 让升级期间还在运行的旧扩展进程与回滚版本继续工作（新扩展会忽略它）。
             authorizedFolderPaths: FolderAccessManager.shared.authorizedFolderPaths
         )
     }
